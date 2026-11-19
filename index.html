@@ -1320,7 +1320,7 @@ html[data-open] #gate {
               <label for="size-step">STEP<input id="size-step" type="number" step="any" value="1" autocomplete="off"></label>
             </div>
           </div>
-          <p class="note">Percent of the selected shape. Other parameters stay as set.</p>
+          <p class="note">Scale of the selected shape. Parameters stay as set.</p>
         </div>
         <button type="button" id="open-picked" hidden>OPEN IN GRID</button>
         <button type="button" id="export-picked-svg" hidden>EXPORT SHAPE SVG</button>
@@ -3138,15 +3138,6 @@ html[data-open] #gate {
     }
   }
 
-  function sizedSpec(base, pct) {
-    var scale = Math.max(0, pct) / 100;
-    var spec = copySpec(base);
-    spec.length = Math.max(0.5, base.length * scale);
-    spec.stem = Math.max(0.5, base.stem * scale);
-    spec.spread = spreadDeg(spec.length, spec.r1, spec.arm);
-    return spec;
-  }
-
   function sizeMetrics(base) {
     if (!sizeAnchor) rememberSizeSource(base);
     projectSizeControls(base);
@@ -3162,9 +3153,11 @@ html[data-open] #gate {
       series = { start: start, end: end, step: step, values: [100], count: 1, ok: false, held: true, limited: false };
     }
     var values = series.values.slice();
+    var spec = copySpec(sizeAnchor);
+    spec.spread = spreadDeg(spec.length, spec.r1, spec.arm);
+    var g = geometry(spec);
     var built = values.map(function (pct) {
-      var spec = sizedSpec(sizeAnchor, pct);
-      return { pct: pct, spec: spec, g: geometry(spec) };
+      return { pct: pct, spec: spec, g: g };
     });
     var areaW = PAGE_W - 2 * MARGIN;
     var areaH = PAGE_H - 2 * MARGIN - HEADER_H;
@@ -3191,11 +3184,13 @@ html[data-open] #gate {
       pages.push({ flow: "size", start: 0, count: 1, nc: colsPer, nr: 1, cellW: cellW, cellH: cellH, full: false });
     }
     var maxDim = 1;
-    built.forEach(function (item) {
-      if (!item.g) return;
-      var box = bounds(item.g.samples || item.g.poly);
-      maxDim = Math.max(maxDim, box.maxX - box.minX, box.maxY - box.minY);
-    });
+    if (g) {
+      var box = bounds(g.samples || g.poly);
+      maxDim = Math.max(1, box.maxX - box.minX, box.maxY - box.minY);
+    }
+    var maxPct = 0;
+    values.forEach(function (pct) { if (pct > maxPct) maxPct = pct; });
+    if (!(maxPct > 0)) maxPct = 100;
     var metrics = {
       flow: "size",
       base: sizeAnchor,
@@ -3209,21 +3204,22 @@ html[data-open] #gate {
       pages: pages,
       scales: values,
       built: built,
-      sizeExtent: maxDim
+      sizeExtent: maxDim,
+      sizeMaxPct: maxPct
     };
     liveMetrics = metrics;
     return metrics;
   }
 
-  function paintSizedGlyph(painter, item, x, y, w, h, n, maxDim) {
-    if (item && item.g) {
+  function paintSizedGlyph(painter, item, x, y, w, h, n, maxDim, maxPct) {
+    if (item && item.g && maxPct > 0) {
       var box = bounds(item.g.samples || item.g.poly);
-      var scale = Math.min((w * 0.74) / maxDim, (h * 0.62) / maxDim);
+      var fit = Math.min((w * 0.74) / maxDim, (h * 0.62) / maxDim);
       painter.glyph(
         item.g.shape || item.g.poly,
         x + w / 2,
         y + h / 2,
-        scale,
+        fit * (item.pct / maxPct),
         (box.minX + box.maxX) / 2,
         (box.minY + box.maxY) / 2
       );
@@ -3608,7 +3604,7 @@ html[data-open] #gate {
     var sizeFit = metrics.flow === "size" ? metrics.sizeExtent : 0;
     board.cells.forEach(function (cell) {
       if (metrics.flow === "size") {
-        paintSizedGlyph(painter, metrics.built[cell.n - 1], cell.x, cell.y, cell.w, cell.h, cell.n, sizeFit);
+        paintSizedGlyph(painter, metrics.built[cell.n - 1], cell.x, cell.y, cell.w, cell.h, cell.n, sizeFit, metrics.sizeMaxPct);
         return;
       }
       var spec = instanceParams(metrics.base, cell.colT, cell.rowT, cell.blockT);
@@ -3652,7 +3648,8 @@ html[data-open] #gate {
         page.cellW,
         page.cellH,
         at + 1,
-        metrics.sizeExtent
+        metrics.sizeExtent,
+        metrics.sizeMaxPct
       );
     }
     paintFullCue(painter, index, metrics);
