@@ -14,6 +14,11 @@
     document.documentElement.setAttribute("data-theme", theme);
     var meta = document.querySelector('meta[name="color-scheme"]');
     if (meta) meta.setAttribute("content", theme);
+    try {
+      if (sessionStorage.getItem("y-grid-open") === "1") {
+        document.documentElement.setAttribute("data-open", "1");
+      }
+    } catch (err) {}
   })();
   </script>
   <style>
@@ -848,9 +853,96 @@ input:focus-visible {
     aspect-ratio: 420 / 297;
   }
 }
+
+html:not([data-open]) main.sheet {
+  display: none;
+}
+
+html[data-open] #gate {
+  display: none;
+}
+
+#gate {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: var(--paper);
+}
+
+#gate-form {
+  width: 196px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.gate-mark {
+  margin: 0 0 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--ink);
+}
+
+#gate-key {
+  width: 100%;
+  background: var(--paper);
+  color: var(--ink);
+  border: 1px solid var(--ink);
+  border-radius: 0;
+  padding: 3px 6px;
+  font: inherit;
+}
+
+#gate-form button {
+  background: transparent;
+  color: var(--ink);
+  border: 1px solid var(--ink);
+  border-radius: 0;
+  padding: 3px 6px;
+  text-align: left;
+}
+
+#gate-note {
+  min-height: 1.35em;
+  margin: 0;
+}
 </style>
 </head>
 <body>
+  <div id="gate">
+    <form id="gate-form" autocomplete="off">
+      <p class="gate-mark">Y GRID</p>
+      <label for="gate-key">PASSWORD</label>
+      <input id="gate-key" type="password" autocomplete="current-password" spellcheck="false" autofocus>
+      <button type="submit">ENTER</button>
+      <p id="gate-note" role="status"></p>
+    </form>
+  </div>
+  <script>
+  (function () {
+    var HASH = "d83311e42a584c230a571e0cee22adc65a41f9b93c4b67d79f60d9fd3d017691";
+    var form = document.getElementById("gate-form");
+    var input = document.getElementById("gate-key");
+    var note = document.getElementById("gate-note");
+    form.addEventListener("submit", function (event) {
+      event.preventDefault();
+      crypto.subtle.digest("SHA-256", new TextEncoder().encode(input.value)).then(function (buf) {
+        var hex = Array.prototype.map.call(new Uint8Array(buf), function (b) {
+          return ("0" + b.toString(16)).slice(-2);
+        }).join("");
+        if (hex !== HASH) {
+          note.textContent = "INCORRECT";
+          input.value = "";
+          input.focus();
+          return;
+        }
+        try { sessionStorage.setItem("y-grid-open", "1"); } catch (err) {}
+        document.documentElement.setAttribute("data-open", "1");
+      });
+    });
+  })();
+  </script>
   <main class="sheet">
     <header class="mast">
       <svg class="logo" width="156" height="5.2" viewBox="0 0 120 4" role="img" aria-label="Terrain">
