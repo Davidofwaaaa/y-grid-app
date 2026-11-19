@@ -657,7 +657,11 @@ h2.section {
 }
 
 #view-interpolate,
-#export-interpolate {
+#interp-between,
+#export-interpolate,
+#export-between-svg,
+#export-between-eps,
+#export-between-pdf {
   display: block;
   width: 100%;
   text-align: left;
@@ -671,7 +675,8 @@ h2.section {
   padding: 3px 6px;
 }
 
-#view-interpolate[aria-pressed="true"] {
+#view-interpolate[aria-pressed="true"],
+#interp-between[aria-pressed="true"] {
   background: var(--quiet);
 }
 
@@ -1332,6 +1337,17 @@ html[data-open] #gate {
         <details class="side-fold" open>
           <summary>INTERPOLATION</summary>
           <button type="button" id="view-interpolate" aria-pressed="false">INTERPOLATE</button>
+          <button type="button" id="interp-between" aria-pressed="false">BETWEEN</button>
+          <div id="between-controls" hidden>
+            <div class="iter-range">
+              <label for="between-steps">STEPS<input id="between-steps" type="number" min="2" max="66" step="1" value="8" autocomplete="off"></label>
+              <span class="iter-count" id="between-count">8</span>
+            </div>
+            <p class="note" id="between-note">Select two shapes.</p>
+            <button type="button" id="export-between-svg">EXPORT SVG</button>
+            <button type="button" id="export-between-eps">EXPORT EPS</button>
+            <button type="button" id="export-between-pdf">EXPORT PDF</button>
+          </div>
           <p class="note" id="interp-flow">No parameter included. Each shape held.</p>
           <p class="note" id="interp-cap" hidden>3 shapes</p>
           <h2 class="section">SHAPES</h2>
@@ -1425,6 +1441,7 @@ html[data-open] #gate {
   var heldOn = {};
   var showCap = false;
   var interpolateOn = false;
+  var betweenOn = false;
   var interpOrder = [];
   var columnInterp = {};
   var columnSteps = {};
@@ -1592,6 +1609,18 @@ html[data-open] #gate {
     applyChrome();
     draw();
   });
+  document.getElementById("interp-between").addEventListener("click", function () {
+    betweenOn = !betweenOn;
+    if (betweenOn && !interpolateOn) {
+      interpolateOn = true;
+      applyChrome();
+    }
+    draw();
+  });
+  document.getElementById("between-steps").addEventListener("input", function () { draw(); });
+  document.getElementById("export-between-svg").addEventListener("click", exportBetweenSvg);
+  document.getElementById("export-between-eps").addEventListener("click", exportBetweenEps);
+  document.getElementById("export-between-pdf").addEventListener("click", exportBetweenPdf);
   document.getElementById("theme-light").addEventListener("click", function () {
     useTheme("light", true);
     draw();
@@ -1942,12 +1971,14 @@ html[data-open] #gate {
       var interpMetrics = sheetMetrics(p);
       refreshSheetChrome(interpMetrics);
       syncPosterChrome();
-      document.getElementById("mast-note").textContent = "INTERPOLATE";
+      syncBetween();
+      document.getElementById("mast-note").textContent = betweenOn ? "BETWEEN" : "INTERPOLATE";
       field.classList.add("sheet");
       field.classList.remove("poster");
       stage.setAttribute("viewBox", "0 0 " + round(PAGE_W) + " " + round(PAGE_H));
-      stage.setAttribute("aria-label", "Y interpolate");
-      paintInterpolate(svgPainter(stage));
+      stage.setAttribute("aria-label", betweenOn ? "Y between two shapes" : "Y interpolate");
+      if (betweenOn) paintBetween(svgPainter(stage), interpMetrics);
+      else paintInterpolate(svgPainter(stage));
       updatePicked(p, interpMetrics);
       return;
     }
@@ -3942,6 +3973,117 @@ html[data-open] #gate {
     };
   }
 
+  function blendSpec(a, b, t) {
+    var spec = copySpec(a);
+    ["arm", "length", "cutoff", "stem", "offset", "r1", "r2", "r3"].forEach(function (key) {
+      spec[key] = a[key] + (b[key] - a[key]) * t;
+    });
+    spec.r2On = !!(a.r2On || b.r2On);
+    spec.r3On = !!(a.r3On || b.r3On);
+    spec.spread = spreadDeg(spec.length, spec.r1, spec.arm);
+    return spec;
+  }
+
+  function betweenCount() {
+    var count = Math.round(readNum("between-steps"));
+    if (!Number.isFinite(count)) count = 8;
+    return clamp(count, 2, 66);
+  }
+
+  function betweenForms(metrics) {
+    var shapes = checkedShapes(metrics);
+    if (shapes.length < 2) return null;
+    var count = betweenCount();
+    var forms = [];
+    for (var i = 0; i < count; i++) {
+      forms.push(blendSpec(shapes[0].spec, shapes[1].spec, i / (count - 1)));
+    }
+    return { a: shapes[0], b: shapes[1], forms: forms };
+  }
+
+  function syncBetween() {
+    var btn = document.getElementById("interp-between");
+    if (btn) btn.setAttribute("aria-pressed", betweenOn ? "true" : "false");
+    var controls = document.getElementById("between-controls");
+    if (controls) controls.hidden = !betweenOn;
+    var note = document.getElementById("between-note");
+    var countEl = document.getElementById("between-count");
+    if (countEl) countEl.textContent = String(betweenCount());
+    if (!note) return;
+    var n = shownShapeCount();
+    if (n < 2) note.textContent = "Select two shapes.";
+    else if (n > 2) note.textContent = "Uses the first two shapes. Each parameter moves from one to the other.";
+    else note.textContent = "Each parameter moves from the first shape to the second.";
+  }
+
+  function paintBetween(painter, metrics) {
+    metrics = metrics || liveMetrics || sheetMetrics(params());
+    painter.rect(0, 0, PAGE_W, PAGE_H, PAPER);
+    var run = betweenForms(metrics);
+    if (!run) {
+      painter.text("Select two shapes.", MARGIN, MARGIN + 14, 10);
+      return;
+    }
+    painter.text(pad(run.a.n) + "  to  " + pad(run.b.n) + "    " + run.forms.length + " steps", MARGIN, MARGIN + 12, 9);
+    var areaW = PAGE_W - 2 * MARGIN;
+    var areaH = PAGE_H - 2 * MARGIN - HEADER_H;
+    var fit = fitGrid(run.forms.length, areaW, areaH);
+    run.forms.forEach(function (spec, i) {
+      paintInterpCell(
+        painter,
+        spec,
+        MARGIN + (i % fit.cols) * fit.cellW,
+        MARGIN + HEADER_H + Math.floor(i / fit.cols) * fit.cellH,
+        fit.cellW,
+        fit.cellH,
+        i + 1,
+        i === 0 || i === run.forms.length - 1
+      );
+    });
+  }
+
+  function exportBetweenSvg() {
+    var doc = blankSvg(PAGE_W, PAGE_H);
+    paintBetween(svgPainter(doc, false), sheetMetrics(params()));
+    download(sheetFileName("between", "svg"), serialize(doc), "image/svg+xml");
+  }
+
+  function exportBetweenEps() {
+    download(sheetFileName("between", "eps"), betweenEps(), "application/postscript");
+  }
+
+  function exportBetweenPdf() {
+    download(sheetFileName("between", "pdf"), buildPdf([betweenPage()]), "application/pdf");
+  }
+
+  function betweenPage() {
+    var page = pdfPage(PAGE_W, PAGE_H);
+    page.ops.push("q 1 0 0 -1 0 " + fmt(PAGE_H) + " cm");
+    paintBetween(page, sheetMetrics(params()));
+    page.ops.push("Q");
+    return { width: PAGE_W, height: PAGE_H, stream: page.ops.join("\n") };
+  }
+
+  function betweenEps() {
+    var page = epsPage();
+    page.ops.push("gsave");
+    page.ops.push("[1 0 0 -1 0 " + fmt(PAGE_H) + "] concat");
+    paintBetween(page, sheetMetrics(params()));
+    page.ops.push("grestore");
+    return [
+      "%!PS-Adobe-3.0 EPSF-3.0",
+      "%%BoundingBox: 0 0 " + Math.ceil(PAGE_W) + " " + Math.ceil(PAGE_H),
+      "%%HiResBoundingBox: 0 0 " + fmt(PAGE_W) + " " + fmt(PAGE_H),
+      "%%Title: Y GRID between",
+      "%%Creator: Y GRID",
+      "%%LanguageLevel: 2",
+      "%%EndComments",
+      page.ops.join("\n"),
+      "%%EOF",
+      ""
+    ].join("\n");
+  }
+
   function paintInterpolate(painter) {
     painter.rect(0, 0, PAGE_W, PAGE_H, PAPER);
     var metrics = liveMetrics || sheetMetrics(params());
@@ -4827,6 +4969,9 @@ html[data-open] #gate {
         this.ops.push("gsave [1 0 0 -1 " + fmt(x + dx) + " " + fmt(y) + "] concat /Courier findfont " + fmt(size) + " scalefont setfont " + pdfColor(INK) + " setrgbcolor 0 0 moveto (" + pdfEscape(string) + ") show grestore");
       },
       cell: function () {},
+      frame: function (x, y, w, h) {
+        this.ops.push("gsave " + pdfColor(INK) + " setrgbcolor 0.9 setlinewidth " + fmt(x) + " " + fmt(y) + " " + fmt(w) + " " + fmt(h) + " rectstroke grestore");
+      },
       glyph: function (pts, cx, cy, scale, ox, oy) {
         this.ops.push("gsave");
         this.ops.push("[" + fmt(scale) + " 0 0 " + fmt(-scale) + " " + fmt(cx) + " " + fmt(cy) + "] concat");
