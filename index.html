@@ -681,9 +681,12 @@ h2.section {
 }
 
 #shape,
+#poster,
 #export-svg,
 #export-pdf,
 #export-all,
+#export-poster-svg,
+#export-poster-eps,
 #open-picked,
 #export-picked-svg,
 #export-picked-pdf,
@@ -710,6 +713,18 @@ h2.section {
 
 #export-svg {
   margin-top: 14px;
+}
+
+#poster {
+  margin-top: 10px;
+}
+
+#poster[aria-pressed="true"] {
+  background: var(--quiet);
+}
+
+#poster-exports {
+  margin-top: 8px;
 }
 
 .pager {
@@ -801,6 +816,21 @@ input:focus-visible {
   width: 100%;
   height: 100%;
   aspect-ratio: auto;
+}
+
+.field.poster {
+  background: var(--quiet);
+  align-items: center;
+  justify-content: center;
+}
+
+.field.sheet.poster #stage {
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: 100%;
+  aspect-ratio: 100 / 70;
+  background: var(--paper);
 }
 
 @media (max-width: 900px) {
@@ -1130,6 +1160,11 @@ html[data-open] #gate {
         <details class="side-fold" open>
           <summary>SHEET</summary>
         <p class="note" id="sheet-note">No parameter iterated. One cell of the current shape.</p>
+        <button type="button" id="poster" aria-pressed="false">100 × 70 CM</button>
+        <div id="poster-exports" hidden>
+          <button type="button" id="export-poster-svg">EXPORT SVG</button>
+          <button type="button" id="export-poster-eps">EXPORT EPS</button>
+        </div>
         <p class="note" id="sheet-limit" hidden></p>
         <input id="page" type="hidden" value="1">
         <div class="fields iters" id="iters">
@@ -1351,6 +1386,8 @@ html[data-open] #gate {
   var MM = 72 / 25.4;
   var PAGE_W = 420 * MM;
   var PAGE_H = 297 * MM;
+  var POSTER_W = 1000 * MM;
+  var POSTER_H = 700 * MM;
   var MARGIN = 12.7 * MM;
   var GUTTER = 8 * MM;
   var HEADER_H = 12 * MM;
@@ -1362,6 +1399,7 @@ html[data-open] #gate {
   var field = document.getElementById("field");
   var mode = "grid";
   var shapeOnly = false;
+  var posterOn = false;
   var picked = [];
   var active = 0;
   var heldOn = {};
@@ -1514,6 +1552,12 @@ html[data-open] #gate {
     box.addEventListener("change", onIterToggle);
   });
 
+  document.getElementById("poster").addEventListener("click", function () {
+    posterOn = !posterOn;
+    draw();
+  });
+  document.getElementById("export-poster-svg").addEventListener("click", exportPosterSvg);
+  document.getElementById("export-poster-eps").addEventListener("click", exportPosterEps);
   document.getElementById("view-grid").addEventListener("click", function () { setMode("grid"); });
   document.getElementById("view-sheet").addEventListener("click", function () { setMode("sheet"); });
   document.getElementById("view-interpolate").addEventListener("click", function () {
@@ -1869,8 +1913,10 @@ html[data-open] #gate {
     if (interpolateOn) {
       var interpMetrics = sheetMetrics(p);
       refreshSheetChrome(interpMetrics);
+      syncPosterChrome();
       document.getElementById("mast-note").textContent = "INTERPOLATE";
       field.classList.add("sheet");
+      field.classList.remove("poster");
       stage.setAttribute("viewBox", "0 0 " + round(PAGE_W) + " " + round(PAGE_H));
       stage.setAttribute("aria-label", "Y interpolate");
       paintInterpolate(svgPainter(stage));
@@ -1880,11 +1926,25 @@ html[data-open] #gate {
     if (mode === "sheet") {
       var metrics = sheetMetrics(p);
       refreshSheetChrome(metrics);
-      stage.setAttribute("viewBox", "0 0 " + round(PAGE_W) + " " + round(PAGE_H));
-      paintSheet(svgPainter(stage), pageIndex(), metrics);
+      syncPosterChrome();
+      if (posterActive()) {
+        document.getElementById("mast-note").textContent = "100 × 70 CM";
+        var posterNote = document.getElementById("sheet-note");
+        var posterCount = cellTotal(metrics);
+        if (posterNote) posterNote.textContent = posterCount + (posterCount === 1 ? " shape" : " shapes") + " on one 100 × 70 cm sheet.";
+        stage.setAttribute("viewBox", "0 0 " + fmt(POSTER_W) + " " + fmt(POSTER_H));
+        stage.setAttribute("aria-label", "Y sheet 100 by 70 centimetres");
+        paintPoster(svgPainter(stage), metrics);
+      } else {
+        field.classList.remove("poster");
+        stage.setAttribute("viewBox", "0 0 " + round(PAGE_W) + " " + round(PAGE_H));
+        stage.setAttribute("aria-label", "Y sheet");
+        paintSheet(svgPainter(stage), pageIndex(), metrics);
+      }
       updatePicked(p, metrics);
       return;
     }
+    field.classList.remove("poster");
     var g = preview || lastGood;
     if (!g) return;
     lastGood = g;
@@ -3199,6 +3259,166 @@ html[data-open] #gate {
     return line;
   }
 
+  function posterActive() {
+    return posterOn && mode === "sheet" && !interpolateOn;
+  }
+
+  function syncPosterChrome() {
+    var on = posterActive();
+    var btn = document.getElementById("poster");
+    if (btn) btn.setAttribute("aria-pressed", posterOn ? "true" : "false");
+    var posterExports = document.getElementById("poster-exports");
+    if (posterExports) posterExports.hidden = !on;
+    var sheetExports = document.getElementById("sheet-exports");
+    if (sheetExports && mode === "sheet" && !interpolateOn) sheetExports.hidden = on;
+    var pager = document.getElementById("page-pager");
+    if (pager && mode === "sheet" && !interpolateOn) pager.hidden = on;
+    field.classList.toggle("poster", on);
+  }
+
+  function fitGrid(count, areaW, areaH) {
+    var target = areaW / Math.max(areaH, 1);
+    var bestCols = 1;
+    var best = Infinity;
+    var n = Math.max(1, count);
+    for (var cols = 1; cols <= n; cols++) {
+      var rows = Math.ceil(n / cols);
+      var score = Math.abs(Math.log((cols / rows) / target));
+      score += ((cols * rows - n) / (cols * rows)) * 0.08;
+      if (score < best) {
+        best = score;
+        bestCols = cols;
+      }
+    }
+    var usedRows = Math.ceil(n / bestCols);
+    return { cols: bestCols, rows: usedRows, cellW: areaW / bestCols, cellH: areaH / usedRows };
+  }
+
+  function fitBlocks(blockN, colN, rowN, areaW, areaH) {
+    var target = areaW / Math.max(areaH, 1);
+    var best = { bc: 1, br: Math.max(1, blockN), score: Infinity };
+    var n = Math.max(1, blockN);
+    for (var bc = 1; bc <= n; bc++) {
+      var br = Math.ceil(n / bc);
+      var score = Math.abs(Math.log(((bc * colN) / (br * rowN)) / target));
+      score += ((bc * br - n) / (bc * br)) * 0.08;
+      if (score < best.score) best = { bc: bc, br: br, score: score };
+    }
+    return best;
+  }
+
+  function posterTitle(metrics) {
+    var bits = ["100 × 70 CM"];
+    if (metrics.flow === "wrap") {
+      var spec = metrics.series[metrics.soloKey];
+      var name = paramByKey(metrics.soloKey).label.toLowerCase();
+      bits.push(!spec || spec.held || !spec.ok
+        ? name
+        : name + ", " + trimNum(spec.start) + " to " + trimNum(spec.end) + " step " + trimNum(spec.step));
+    } else if (!metrics.axes.col && !metrics.axes.row && !metrics.axes.block) {
+      bits.push("current shape");
+    } else {
+      ["col", "row", "block"].forEach(function (role) {
+        var key = metrics.axes[role];
+        if (key) bits.push(axisPhrase(key, role, metrics.series[key]));
+      });
+    }
+    var total = cellTotal(metrics);
+    bits.push(total + (total === 1 ? " shape" : " shapes"));
+    return bits.join("    ");
+  }
+
+  function posterLayout(metrics) {
+    var areaW = POSTER_W - 2 * MARGIN;
+    var areaH = POSTER_H - 2 * MARGIN - HEADER_H;
+    var cells = [];
+    var labels = [];
+    if (metrics.flow === "wrap") {
+      var count = Math.max(1, metrics.cols.length);
+      var fit = fitGrid(count, areaW, areaH);
+      for (var i = 0; i < count; i++) {
+        cells.push({
+          n: i + 1,
+          x: MARGIN + (i % fit.cols) * fit.cellW,
+          y: MARGIN + HEADER_H + Math.floor(i / fit.cols) * fit.cellH,
+          w: fit.cellW,
+          h: fit.cellH,
+          colT: metrics.cols[i],
+          rowT: null,
+          blockT: null
+        });
+      }
+      return { cells: cells, labels: labels };
+    }
+    var colN = Math.max(1, metrics.cols.length);
+    var rowN = Math.max(1, metrics.rows.length);
+    var blockN = Math.max(1, metrics.blocks.length);
+    var pack = fitBlocks(blockN, colN, rowN, areaW, areaH);
+    var titleH = metrics.axes.block ? BLOCK_TITLE_H : 0;
+    var cellW = (areaW - (pack.bc - 1) * GUTTER) / (pack.bc * colN);
+    var cellH = (areaH - pack.br * titleH - Math.max(0, pack.br - 1) * GUTTER) / (pack.br * rowN);
+    var blockW = cellW * colN;
+    var blockH = titleH + cellH * rowN;
+    for (var b = 0; b < blockN; b++) {
+      var bc = b % pack.bc;
+      var br = Math.floor(b / pack.bc);
+      var bx = MARGIN + bc * (blockW + GUTTER);
+      var by = MARGIN + HEADER_H + br * (blockH + GUTTER);
+      if (metrics.axes.block) {
+        labels.push({
+          text: paramByKey(metrics.axes.block).label.toLowerCase() + " " + trimNum(metrics.blocks[b]),
+          x: bx,
+          y: by + 12
+        });
+      }
+      for (var r = 0; r < rowN; r++) {
+        for (var c = 0; c < colN; c++) {
+          cells.push({
+            n: numberAt(c, r, b, metrics),
+            x: bx + c * cellW,
+            y: by + titleH + r * cellH,
+            w: cellW,
+            h: cellH,
+            colT: metrics.axes.col ? metrics.cols[c] : null,
+            rowT: metrics.axes.row ? metrics.rows[r] : null,
+            blockT: metrics.axes.block ? metrics.blocks[b] : null
+          });
+        }
+      }
+    }
+    return { cells: cells, labels: labels };
+  }
+
+  function paintPoster(painter, metrics) {
+    var board = posterLayout(metrics);
+    painter.rect(0, 0, POSTER_W, POSTER_H, PAPER);
+    painter.text(posterTitle(metrics), MARGIN, MARGIN + 16, 14);
+    board.labels.forEach(function (label) {
+      painter.text(label.text, label.x, label.y, 11);
+    });
+    board.cells.forEach(function (cell) {
+      var spec = instanceParams(metrics.base, cell.colT, cell.rowT, cell.blockT);
+      var g = geometry(spec);
+      if (g) {
+        var box = bounds(g.samples || g.poly);
+        var gw = Math.max(box.maxX - box.minX, 1);
+        var gh = Math.max(box.maxY - box.minY, 1);
+        var scale = Math.min((cell.w * 0.74) / gw, (cell.h * 0.62) / gh);
+        painter.glyph(
+          g.shape || g.poly,
+          cell.x + cell.w / 2,
+          cell.y + cell.h / 2,
+          scale,
+          (box.minX + box.maxX) / 2,
+          (box.minY + box.maxY) / 2
+        );
+      }
+      var numSize = clamp(Math.min(cell.w, cell.h) * 0.09, 8, 28);
+      painter.text(String(cell.n), cell.x + numSize * 0.4, cell.y + numSize * 1.15, numSize);
+      painter.cell(cell.x, cell.y, cell.w, cell.h, cell.n, picked.indexOf(cell.n) !== -1, cell.n === active);
+    });
+  }
+
   function paintSheet(painter, index, metrics) {
     if (metrics.flow === "wrap") {
       paintSheetWrap(painter, index, metrics);
@@ -3864,6 +4084,18 @@ html[data-open] #gate {
     return { n: n, spec: spec, g: g, spot: spot };
   }
 
+  function exportPosterSvg() {
+    var doc = blankSvg(POSTER_W, POSTER_H);
+    doc.setAttribute("width", "100cm");
+    doc.setAttribute("height", "70cm");
+    paintPoster(svgPainter(doc, false), sheetMetrics(params()));
+    download("y-100x70.svg", serialize(doc), "image/svg+xml");
+  }
+
+  function exportPosterEps() {
+    download("y-100x70.eps", posterEps(), "application/postscript");
+  }
+
   function exportViewSvg() {
     if (mode === "sheet") {
       var metrics = sheetMetrics(params());
@@ -4034,7 +4266,8 @@ html[data-open] #gate {
     return { width: w, height: h, stream: page.ops.join("\n") };
   }
 
-  function svgPainter(parent) {
+  function svgPainter(parent, hits) {
+    if (hits == null) hits = true;
     return {
       fill: function (pts, color) { parent.appendChild(polyEl(pts, color, null, 0, null)); },
       stroke: function (pts, color, width) { parent.appendChild(polyEl(pts, "none", color, width, null, true)); },
@@ -4084,6 +4317,7 @@ html[data-open] #gate {
         parent.appendChild(node);
       },
       cell: function (x, y, w, h, n, on, isActive) {
+        if (!hits) return;
         var hit = svgEl("rect");
         hit.setAttribute("x", x);
         hit.setAttribute("y", y);
@@ -4256,6 +4490,64 @@ html[data-open] #gate {
       }).join(" ");
     }
     return body + (open ? "" : " Z");
+  }
+
+  function psPath(pts, open) {
+    var body;
+    if (pts.length && pts[0].t) {
+      body = pts.map(function (c) {
+        if (c.t === "M") return fmt(c.x) + " " + fmt(c.y) + " moveto";
+        if (c.t === "L") return fmt(c.x) + " " + fmt(c.y) + " lineto";
+        return fmt(c.x1) + " " + fmt(c.y1) + " " + fmt(c.x2) + " " + fmt(c.y2) + " " + fmt(c.x) + " " + fmt(c.y) + " curveto";
+      }).join("\n");
+    } else {
+      body = pts.map(function (p, i) {
+        return fmt(p.x) + " " + fmt(p.y) + (i ? " lineto" : " moveto");
+      }).join("\n");
+    }
+    return body + (open ? "" : "\nclosepath");
+  }
+
+  function epsPage() {
+    return {
+      ops: [],
+      rect: function (x, y, w, h, color) {
+        this.ops.push("gsave " + pdfColor(color) + " setrgbcolor " + fmt(x) + " " + fmt(y) + " " + fmt(w) + " " + fmt(h) + " rectfill grestore");
+      },
+      text: function (string, x, y, size, anchor) {
+        var dx = anchor === "end" ? -String(string).length * size * 0.6 : 0;
+        this.ops.push("gsave [1 0 0 -1 " + fmt(x + dx) + " " + fmt(y) + "] concat /Courier findfont " + fmt(size) + " scalefont setfont " + pdfColor(INK) + " setrgbcolor 0 0 moveto (" + pdfEscape(string) + ") show grestore");
+      },
+      cell: function () {},
+      glyph: function (pts, cx, cy, scale, ox, oy) {
+        this.ops.push("gsave");
+        this.ops.push("[" + fmt(scale) + " 0 0 " + fmt(-scale) + " " + fmt(cx) + " " + fmt(cy) + "] concat");
+        this.ops.push("[1 0 0 1 " + fmt(-ox) + " " + fmt(-oy) + "] concat");
+        this.ops.push(pdfColor(INK) + " setrgbcolor");
+        this.ops.push(psPath(pts) + " fill");
+        this.ops.push("grestore");
+      }
+    };
+  }
+
+  function posterEps() {
+    var page = epsPage();
+    page.ops.push("gsave");
+    page.ops.push("[1 0 0 -1 0 " + fmt(POSTER_H) + "] concat");
+    paintPoster(page, sheetMetrics(params()));
+    page.ops.push("grestore");
+    return [
+      "%!PS-Adobe-3.0 EPSF-3.0",
+      "%%BoundingBox: 0 0 " + Math.ceil(POSTER_W) + " " + Math.ceil(POSTER_H),
+      "%%HiResBoundingBox: 0 0 " + fmt(POSTER_W) + " " + fmt(POSTER_H),
+      "%%Title: Y GRID 100cm x 70cm",
+      "%%Creator: Y GRID",
+      "%%LanguageLevel: 2",
+      "%%EndComments",
+      page.ops.join("\n"),
+      "%%EOF",
+      ""
+    ].join("\n");
   }
 
   function pdfPath(pts, open) {
