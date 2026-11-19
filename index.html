@@ -1312,15 +1312,13 @@ html[data-open] #gate {
                 <input type="checkbox" id="size-on" aria-label="Iterate size">
                 <span>SIZE</span>
               </label>
-              <span class="iter-count" id="size-count">86</span>
+              <span class="iter-count" id="size-count">100</span>
             </div>
             <div class="iter-range" id="size-range" hidden>
-              <label for="size-start">START<input id="size-start" type="number" step="any" value="100" autocomplete="off"></label>
-              <label for="size-end">END<input id="size-end" type="number" step="any" value="15" autocomplete="off"></label>
-              <label for="size-step">STEP<input id="size-step" type="number" step="any" value="1" autocomplete="off"></label>
+              <label for="size-step">STEP<input id="size-step" type="number" min="0.001" step="any" value="1" autocomplete="off"></label>
             </div>
           </div>
-          <p class="note">Scale of the selected shape. Parameters stay as set.</p>
+          <p class="note">1% to 100%. Step can be a decimal.</p>
         </div>
         <button type="button" id="open-picked" hidden>OPEN IN GRID</button>
         <button type="button" id="export-picked-svg" hidden>EXPORT SHAPE SVG</button>
@@ -1580,9 +1578,7 @@ html[data-open] #gate {
     document.getElementById("size-range").hidden = !sizeOn;
     draw();
   });
-  ["size-start", "size-end", "size-step"].forEach(function (id) {
-    document.getElementById(id).addEventListener("input", function () { draw(); });
-  });
+  document.getElementById("size-step").addEventListener("input", function () { draw(); });
   document.getElementById("poster").addEventListener("click", function () {
     posterOn = !posterOn;
     draw();
@@ -2967,7 +2963,7 @@ html[data-open] #gate {
       var sizeText = (!sizeSpec || !sizeSpec.ok)
         ? "Size, step must be greater than 0."
         : "Size, " + trimNum(sizeSpec.start) + "% to " + trimNum(sizeSpec.end) + "% step " + trimNum(sizeSpec.step) + ".";
-      if (sizeSpec && sizeSpec.limited) sizeText += " Step increased so the sheet stays within 2000 sizes.";
+      if (sizeSpec && sizeSpec.limited) sizeText += " Step increased so the sheet stays within 10000 sizes.";
       var sizePages = metrics.pages.length;
       sizeText += " " + sizePages + (sizePages === 1 ? " page." : " pages.");
       return sizeText;
@@ -3138,19 +3134,36 @@ html[data-open] #gate {
     }
   }
 
+  function sizePercents(step) {
+    if (!(step > 0) || !Number.isFinite(step)) {
+      return { start: 1, end: 100, step: step, values: [], count: 0, ok: false, held: true, limited: false };
+    }
+    var used = step;
+    var limited = false;
+    var span = 99;
+    var count = Math.floor(span / used + 1e-8) + 1;
+    if (count > 10000) {
+      used = Math.ceil((span / 9999) * 10000) / 10000;
+      limited = true;
+    }
+    var values = [];
+    var value = 1;
+    var guard = 0;
+    while (value < 100 - used * 1e-6 && guard < 10000) {
+      values.push(Math.round(value * 10000) / 10000);
+      value += used;
+      guard += 1;
+    }
+    values.push(100);
+    return { start: 1, end: 100, step: used, values: values, count: values.length, ok: true, held: false, limited: limited };
+  }
+
   function sizeMetrics(base) {
     if (!sizeAnchor) rememberSizeSource(base);
     projectSizeControls(base);
-    var start = readNum("size-start");
-    var end = readNum("size-end");
-    var step = readNum("size-step");
-    var series = buildSeries(start, end, step);
-    if (series.count > 2000) {
-      series = buildSeries(start, end, step * Math.ceil(series.count / 2000));
-      series.limited = true;
-    }
+    var series = sizePercents(readNum("size-step"));
     if (!series.ok) {
-      series = { start: start, end: end, step: step, values: [100], count: 1, ok: false, held: true, limited: false };
+      series = { start: 1, end: 100, step: readNum("size-step"), values: [100], count: 1, ok: false, held: true, limited: false };
     }
     var values = series.values.slice();
     var spec = copySpec(sizeAnchor);
@@ -4286,7 +4299,7 @@ html[data-open] #gate {
     var study = document.getElementById("size-study");
     if (study) study.hidden = picked.length !== 1 || mode !== "sheet" || interpolateOn;
     var sizeCount = document.getElementById("size-count");
-    if (sizeCount) sizeCount.textContent = String(sequenceCount(readNum("size-start"), readNum("size-end"), readNum("size-step")));
+    if (sizeCount) sizeCount.textContent = String(sizePercents(readNum("size-step")).count);
     var sizeRange = document.getElementById("size-range");
     if (sizeRange) sizeRange.hidden = !sizeOn;
     if (!metrics) metrics = sheetMetrics(base);
