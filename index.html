@@ -4345,7 +4345,7 @@ html[data-open] #gate {
     if (metrics.flow === "size") {
       var item = metrics.built[n - 1];
       if (!item || !item.g) return null;
-      return { n: n, spec: item.spec, g: item.g, spot: locate(n, metrics) };
+      return { n: n, spec: item.spec, g: item.g, spot: locate(n, metrics), pct: item.pct };
     }
     var spot = locate(n, metrics);
     if (!spot) return null;
@@ -4355,16 +4355,49 @@ html[data-open] #gate {
     return { n: n, spec: spec, g: g, spot: spot };
   }
 
+  function shapeFileName(spec, ext, pct) {
+    var bits = ["y"];
+    PARAMS.forEach(function (item) {
+      if (item.key === "r2" && !spec.r2On) {
+        bits.push("r2-off");
+        return;
+      }
+      if (item.key === "r3" && !spec.r3On) {
+        bits.push("r3-off");
+        return;
+      }
+      bits.push(item.key + "-" + trimNum(spec[item.key]));
+    });
+    if (pct != null && Number.isFinite(pct)) bits.push("size-" + trimNum(pct));
+    return bits.join("-") + "." + ext;
+  }
+
+  function nextExportMark() {
+    var n = 1;
+    try {
+      var stored = parseInt(localStorage.getItem("y-grid-export"), 10);
+      if (stored > 0) n = stored;
+    } catch (err) {}
+    try { localStorage.setItem("y-grid-export", String(n + 1)); } catch (err) {}
+    var text = String(n);
+    while (text.length < 3) text = "0" + text;
+    return text;
+  }
+
+  function sheetFileName(kind, ext) {
+    return "y-" + kind + "-" + nextExportMark() + "." + ext;
+  }
+
   function exportPosterSvg() {
     var doc = blankSvg(POSTER_W, POSTER_H);
     doc.setAttribute("width", "100cm");
     doc.setAttribute("height", "70cm");
     paintPoster(svgPainter(doc, false), sheetMetrics(params()));
-    download("y-100x70.svg", serialize(doc), "image/svg+xml");
+    download(sheetFileName("100x70", "svg"), serialize(doc), "image/svg+xml");
   }
 
   function exportPosterEps() {
-    download("y-100x70.eps", posterEps(), "application/postscript");
+    download(sheetFileName("100x70", "eps"), posterEps(), "application/postscript");
   }
 
   function exportViewSvg() {
@@ -4372,47 +4405,51 @@ html[data-open] #gate {
       var metrics = sheetMetrics(params());
       var doc = blankSvg(PAGE_W, PAGE_H);
       paintSheet(svgPainter(doc), pageIndex(), metrics);
-      download("y-sheet-p" + (pageIndex() + 1) + ".svg", serialize(doc), "image/svg+xml");
+      download(sheetFileName("sheet-p" + (pageIndex() + 1), "svg"), serialize(doc), "image/svg+xml");
       return;
     }
-    download("y-grid.svg", constructionSvg(shapeOnly), "image/svg+xml");
+    download(shapeFileName(params(), "svg"), constructionSvg(shapeOnly), "image/svg+xml");
   }
 
   function exportViewPdf() {
     if (mode === "sheet") {
       var sheet = sheetMetrics(params());
-      download("y-sheet-p" + (pageIndex() + 1) + ".pdf", buildPdf([sheetPage(pageIndex(), sheet)]), "application/pdf");
+      download(sheetFileName("sheet-p" + (pageIndex() + 1), "pdf"), buildPdf([sheetPage(pageIndex(), sheet)]), "application/pdf");
       return;
     }
-    download("y-grid.pdf", buildPdf([constructionPage()]), "application/pdf");
+    download(shapeFileName(params(), "pdf"), buildPdf([constructionPage()]), "application/pdf");
   }
 
   function exportInterpolatePdf() {
     sheetMetrics(params());
-    download("y-interpolate.pdf", buildPdf([interpolatePage()]), "application/pdf");
+    download(sheetFileName("interpolate", "pdf"), buildPdf([interpolatePage()]), "application/pdf");
   }
 
   function exportAllPdf() {
     var metrics = sheetMetrics(params());
     var pages = [];
     for (var i = 0; i < metrics.pages.length; i++) pages.push(sheetPage(i, metrics));
-    download("y-sheet.pdf", buildPdf(pages), "application/pdf");
+    download(sheetFileName("sheet", "pdf"), buildPdf(pages), "application/pdf");
   }
 
   function exportPickedSvg() {
     var records = picked.slice().sort(function (a, b) { return a - b; }).map(shapeRecord).filter(Boolean);
     if (!records.length) return;
     if (records.length === 1) {
-      download("y-" + pad(records[0].n) + ".svg", glyphSvg(records[0]), "image/svg+xml");
+      download(shapeFileName(records[0].spec, "svg", records[0].pct), glyphSvg(records[0]), "image/svg+xml");
       return;
     }
-    download("y-selected.svg", contactSvg(records), "image/svg+xml");
+    download(sheetFileName("selected", "svg"), contactSvg(records), "image/svg+xml");
   }
 
   function exportPickedPdf() {
     var records = picked.slice().sort(function (a, b) { return a - b; }).map(shapeRecord).filter(Boolean);
     if (!records.length) return;
-    download("y-selected.pdf", buildPdf(records.map(glyphPage)), "application/pdf");
+    if (records.length === 1) {
+      download(shapeFileName(records[0].spec, "pdf", records[0].pct), buildPdf(records.map(glyphPage)), "application/pdf");
+      return;
+    }
+    download(sheetFileName("selected", "pdf"), buildPdf(records.map(glyphPage)), "application/pdf");
   }
 
   function constructionSvg(black) {
