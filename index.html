@@ -4750,11 +4750,18 @@ html[data-open] #gate {
       if (box) box.checked = !!item.spec[key + "On"];
       syncRadiusToggle(key, false);
     });
+    PARAMS.forEach(function (param) {
+      if (locks[param.key]) setLocked(param.key, false, true);
+    });
+    var fold = document.querySelector('.panel[aria-label="Controls"] .param-fold');
+    if (fold) fold.open = true;
     presetHold = item.pct != null && Number.isFinite(item.pct) ? item.pct : null;
     interpolateOn = false;
     betweenOn = false;
     posterOn = false;
     setMode("grid");
+    var panel = document.querySelector('.panel[aria-label="Controls"]');
+    if (panel) panel.scrollTop = 0;
   }
 
   function onPresetClick(event) {
