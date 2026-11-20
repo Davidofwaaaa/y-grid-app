@@ -4857,7 +4857,11 @@ html[data-open] #gate {
 
   function downloadShape(spec, ext, body, type, pct) {
     download(shapeFileName(spec, ext, pct), body, type);
-    download(shapeFileName(spec, "json", pct), shapeData(spec, pct), "application/json");
+    var sidecar = shapeData(spec, pct);
+    var sidecarName = shapeFileName(spec, "json", pct);
+    setTimeout(function () {
+      download(sidecarName, sidecar, "application/json");
+    }, 400);
   }
 
   function shapeFileName(spec, ext, pct) {
@@ -5440,7 +5444,7 @@ html[data-open] #gate {
     document.body.appendChild(a);
     a.click();
     a.remove();
-    URL.revokeObjectURL(url);
+    setTimeout(function () { URL.revokeObjectURL(url); }, 1500);
   }
 
   function pdfColor(hex) {
