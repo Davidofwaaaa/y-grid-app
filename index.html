@@ -724,6 +724,35 @@ h2.section {
   margin-top: 14px;
 }
 
+#save-preset {
+  margin-top: 14px;
+}
+
+.preset {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 28px;
+  margin-top: -1px;
+}
+
+.preset button {
+  padding: 4px 8px;
+  border: 1px solid var(--ink);
+  background: transparent;
+  text-align: left;
+  letter-spacing: 0;
+}
+
+.preset .preset-load {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.preset .preset-drop {
+  margin-left: -1px;
+  text-align: center;
+}
+
 #poster {
   margin-top: 10px;
 }
@@ -1154,6 +1183,10 @@ html[data-open] #gate {
           </tbody>
         </table>
         <button type="button" id="shape" aria-pressed="false">SHAPE ONLY</button>
+
+        <h2 class="section">PRESETS</h2>
+        <button type="button" id="save-preset">SAVE PRESET</button>
+        <div id="preset-list"></div>
 
         <div id="grid-exports">
           <button type="button" id="export-svg">EXPORT SVG</button>
@@ -1659,6 +1692,9 @@ html[data-open] #gate {
   document.getElementById("export-all").addEventListener("click", exportAllPdf);
   document.getElementById("export-picked-svg").addEventListener("click", exportPickedSvg);
   document.getElementById("export-picked-pdf").addEventListener("click", exportPickedPdf);
+  document.getElementById("save-preset").addEventListener("click", savePreset);
+  document.getElementById("preset-list").addEventListener("click", onPresetClick);
+  renderPresets();
   document.getElementById("export-interpolate").addEventListener("click", exportInterpolatePdf);
 
   var interpIters = document.getElementById("interp-iters");
@@ -4521,6 +4557,129 @@ html[data-open] #gate {
     return { n: n, spec: spec, g: g, spot: spot };
   }
 
+  function loadPresets() {
+    try {
+      var stored = JSON.parse(localStorage.getItem("y-grid-presets") || "[]");
+      return Array.isArray(stored) ? stored : [];
+    } catch (err) {
+      return [];
+    }
+  }
+
+  function storePresets(list) {
+    try { localStorage.setItem("y-grid-presets", JSON.stringify(list)); } catch (err) {}
+  }
+
+  function currentShapeSpec() {
+    if ((mode === "sheet" || interpolateOn) && picked.length) {
+      var record = shapeRecord(active || picked[picked.length - 1]);
+      if (record) return record.spec;
+    }
+    return params();
+  }
+
+  function presetName(list) {
+    var n = 1;
+    list.forEach(function (item) {
+      var value = parseInt(item.name, 10);
+      if (value >= n) n = value + 1;
+    });
+    var text = String(n);
+    while (text.length < 2) text = "0" + text;
+    return text;
+  }
+
+  function renderPresets() {
+    var list = document.getElementById("preset-list");
+    if (!list) return;
+    list.innerHTML = "";
+    loadPresets().forEach(function (item, index) {
+      var row = document.createElement("div");
+      row.className = "preset";
+      var load = document.createElement("button");
+      load.type = "button";
+      load.className = "preset-load";
+      load.setAttribute("data-preset", String(index));
+      load.textContent = item.name + "   " + specText(item.spec);
+      load.title = specText(item.spec);
+      var drop = document.createElement("button");
+      drop.type = "button";
+      drop.className = "preset-drop";
+      drop.setAttribute("data-preset-drop", String(index));
+      drop.setAttribute("aria-label", "Remove preset " + item.name);
+      drop.textContent = "×";
+      row.appendChild(load);
+      row.appendChild(drop);
+      list.appendChild(row);
+    });
+  }
+
+  function savePreset() {
+    var list = loadPresets();
+    list.push({ name: presetName(list), spec: copySpec(currentShapeSpec()) });
+    storePresets(list);
+    renderPresets();
+  }
+
+  function writeParam(id, value) {
+    var item = paramByKey(id);
+    var digits = item ? item.digits : 1;
+    var shown = format(value, digits);
+    var node = document.getElementById(id);
+    if (node) node.value = shown;
+    last[id] = parseFloat(shown);
+    if (ranges[id]) {
+      fitRange(ranges[id], last[id]);
+      var slider = document.getElementById(ranges[id]);
+      if (slider) slider.value = shown;
+    }
+  }
+
+  function applyPreset(index) {
+    var item = loadPresets()[index];
+    if (!item || !item.spec) return;
+    PARAMS.forEach(function (param) {
+      if (Number.isFinite(item.spec[param.key])) writeParam(param.key, item.spec[param.key]);
+    });
+    ["r2", "r3"].forEach(function (key) {
+      var box = document.getElementById(key + "-on");
+      if (box) box.checked = !!item.spec[key + "On"];
+      syncRadiusToggle(key, false);
+    });
+    draw();
+  }
+
+  function onPresetClick(event) {
+    var load = event.target.closest("[data-preset]");
+    if (load) {
+      applyPreset(parseInt(load.getAttribute("data-preset"), 10));
+      return;
+    }
+    var drop = event.target.closest("[data-preset-drop]");
+    if (!drop) return;
+    var list = loadPresets();
+    list.splice(parseInt(drop.getAttribute("data-preset-drop"), 10), 1);
+    storePresets(list);
+    renderPresets();
+  }
+
+  function shapeData(spec, pct) {
+    var data = {};
+    PARAMS.forEach(function (item) {
+      data[item.key] = spec[item.key];
+    });
+    data.r2On = !!spec.r2On;
+    data.r3On = !!spec.r3On;
+    data.spread = spec.spread;
+    if (pct != null && Number.isFinite(pct)) data.size = pct;
+    return JSON.stringify(data, null, 2) + "\n";
+  }
+
+  function downloadShape(spec, ext, body, type, pct) {
+    download(shapeFileName(spec, ext, pct), body, type);
+    download(shapeFileName(spec, "json", pct), shapeData(spec, pct), "application/json");
+  }
+
   function shapeFileName(spec, ext, pct) {
     var bits = ["y"];
     PARAMS.forEach(function (item) {
@@ -4574,7 +4733,7 @@ html[data-open] #gate {
       download(sheetFileName("sheet-p" + (pageIndex() + 1), "svg"), serialize(doc), "image/svg+xml");
       return;
     }
-    download(shapeFileName(params(), "svg"), constructionSvg(shapeOnly), "image/svg+xml");
+    downloadShape(params(), "svg", constructionSvg(shapeOnly), "image/svg+xml");
   }
 
   function exportViewPdf() {
@@ -4583,7 +4742,7 @@ html[data-open] #gate {
       download(sheetFileName("sheet-p" + (pageIndex() + 1), "pdf"), buildPdf([sheetPage(pageIndex(), sheet)]), "application/pdf");
       return;
     }
-    download(shapeFileName(params(), "pdf"), buildPdf([constructionPage()]), "application/pdf");
+    downloadShape(params(), "pdf", buildPdf([constructionPage()]), "application/pdf");
   }
 
   function exportInterpolatePdf() {
@@ -4602,7 +4761,7 @@ html[data-open] #gate {
     var records = picked.slice().sort(function (a, b) { return a - b; }).map(shapeRecord).filter(Boolean);
     if (!records.length) return;
     if (records.length === 1) {
-      download(shapeFileName(records[0].spec, "svg", records[0].pct), glyphSvg(records[0]), "image/svg+xml");
+      downloadShape(records[0].spec, "svg", glyphSvg(records[0]), "image/svg+xml", records[0].pct);
       return;
     }
     download(sheetFileName("selected", "svg"), contactSvg(records), "image/svg+xml");
@@ -4612,7 +4771,7 @@ html[data-open] #gate {
     var records = picked.slice().sort(function (a, b) { return a - b; }).map(shapeRecord).filter(Boolean);
     if (!records.length) return;
     if (records.length === 1) {
-      download(shapeFileName(records[0].spec, "pdf", records[0].pct), buildPdf(records.map(glyphPage)), "application/pdf");
+      downloadShape(records[0].spec, "pdf", buildPdf(records.map(glyphPage)), "application/pdf", records[0].pct);
       return;
     }
     download(sheetFileName("selected", "pdf"), buildPdf(records.map(glyphPage)), "application/pdf");
