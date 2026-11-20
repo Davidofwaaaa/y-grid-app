@@ -728,29 +728,49 @@ h2.section {
   margin-top: 14px;
 }
 
-.preset {
+#preset-list {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 28px;
-  margin-top: -1px;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  margin-top: 4px;
 }
 
-.preset button {
-  padding: 4px 8px;
-  border: 1px solid var(--ink);
-  background: transparent;
-  text-align: left;
-  letter-spacing: 0;
+.preset {
+  position: relative;
 }
 
 .preset .preset-load {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  min-height: 92px;
+  padding: 4px 4px 3px;
+  border: 1px solid var(--ink);
+  background: transparent;
+  text-align: left;
+}
+
+.preset .preset-load svg {
+  display: block;
+  width: 100%;
+  height: 72px;
+}
+
+.preset .preset-name {
+  font-size: 9px;
+  letter-spacing: 0;
 }
 
 .preset .preset-drop {
-  margin-left: -1px;
-  text-align: center;
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  line-height: 16px;
 }
 
 #poster {
@@ -1470,6 +1490,7 @@ html[data-open] #gate {
   var field = document.getElementById("field");
   var mode = "grid";
   var shapeOnly = false;
+  var presetHold = null;
   var posterOn = false;
   var sizeOn = false;
   var sizeAnchor = null;
@@ -1581,6 +1602,7 @@ html[data-open] #gate {
 
   numFields.forEach(function (id) {
     document.getElementById(id).addEventListener("input", function () {
+      presetHold = null;
       if (locks[id]) {
         var item = paramByKey(id);
         document.getElementById(id).value = format(last[id], item ? item.digits : 0);
@@ -1595,6 +1617,7 @@ html[data-open] #gate {
 
   Object.keys(ranges).forEach(function (id) {
     document.getElementById(ranges[id]).addEventListener("input", function (event) {
+      presetHold = null;
       if (locks[id]) {
         event.target.value = String(last[id]);
         return;
@@ -1609,6 +1632,7 @@ html[data-open] #gate {
     var box = document.getElementById(key + "-on");
     if (!box) return;
     box.addEventListener("change", function () {
+      presetHold = null;
       syncRadiusToggle(key, true);
       draw();
     });
@@ -2064,7 +2088,17 @@ html[data-open] #gate {
     var root = svgEl("g");
     root.setAttribute("transform", "scale(1 -1)");
     stage.appendChild(root);
-    paintConstruction(svgPainter(root), g, { hair: false, shapeBlack: shapeOnly });
+    var paintRoot = root;
+    if (presetHold != null) {
+      var held = bounds(g.samples || g.poly);
+      var hx = (held.minX + held.maxX) / 2;
+      var hy = (held.minY + held.maxY) / 2;
+      var scaled = svgEl("g");
+      scaled.setAttribute("transform", "translate(" + hx + " " + hy + ") scale(" + (presetHold / 100) + ") translate(" + (-hx) + " " + (-hy) + ")");
+      root.appendChild(scaled);
+      paintRoot = scaled;
+    }
+    paintConstruction(svgPainter(paintRoot), g, { hair: false, shapeBlack: shapeOnly });
     updatePicked(p);
   }
 
@@ -4570,12 +4604,43 @@ html[data-open] #gate {
     try { localStorage.setItem("y-grid-presets", JSON.stringify(list)); } catch (err) {}
   }
 
-  function currentShapeSpec() {
+  function shapeOutline(g) {
+    var pts = g.shape || g.poly;
+    var b = bounds(g.samples || g.poly);
+    var span = Math.max(b.maxX - b.minX, b.maxY - b.minY, 1);
+    var pad = span * 0.14;
+    var x = b.minX - pad;
+    var y = -(b.maxY + pad);
+    var w = b.maxX - b.minX + pad * 2;
+    var h = b.maxY - b.minY + pad * 2;
+    return {
+      d: pathData(pts),
+      view: round(x) + " " + round(y) + " " + round(w) + " " + round(h),
+      cx: (b.minX + b.maxX) / 2,
+      cy: (b.minY + b.maxY) / 2
+    };
+  }
+
+  function shapesToSave() {
     if ((mode === "sheet" || interpolateOn) && picked.length) {
-      var record = shapeRecord(active || picked[picked.length - 1]);
-      if (record) return record.spec;
+      return picked.slice().sort(function (a, b) { return a - b; }).map(shapeRecord).filter(Boolean);
     }
-    return params();
+    var p = params();
+    var g = geometry(p) || lastGood;
+    if (!g) return [];
+    return [{ spec: p, g: g }];
+  }
+
+  function presetOutline(item) {
+    if (item && item.d && item.view) return item;
+    if (!item || !item.spec) return null;
+    var spec = copySpec(item.spec);
+    spec.spread = spreadDeg(spec.length, spec.r1, spec.arm);
+    var g = geometry(spec);
+    if (!g) return null;
+    var outline = shapeOutline(g);
+    outline.pct = item.pct;
+    return outline;
   }
 
   function presetName(list) {
@@ -4594,14 +4659,39 @@ html[data-open] #gate {
     if (!list) return;
     list.innerHTML = "";
     loadPresets().forEach(function (item, index) {
+      var outline = presetOutline(item);
       var row = document.createElement("div");
       row.className = "preset";
       var load = document.createElement("button");
       load.type = "button";
       load.className = "preset-load";
       load.setAttribute("data-preset", String(index));
-      load.textContent = item.name + "   " + specText(item.spec);
-      load.title = specText(item.spec);
+      var caption = item.name + (item.pct != null && Number.isFinite(item.pct) ? "  " + trimNum(item.pct) + "%" : "");
+      load.setAttribute("aria-label", "Preset " + caption);
+      load.title = item.spec ? specText(item.spec) : caption;
+      if (outline) {
+        var svg = svgEl("svg");
+        svg.setAttribute("viewBox", outline.view);
+        var flip = svgEl("g");
+        flip.setAttribute("transform", "scale(1 -1)");
+        var host = flip;
+        var scale = item.pct > 0 && item.pct < 100 ? item.pct / 100 : (item.pct === 0 ? 0 : 1);
+        if (scale !== 1) {
+          host = svgEl("g");
+          host.setAttribute("transform", "translate(" + outline.cx + " " + outline.cy + ") scale(" + scale + ") translate(" + (-outline.cx) + " " + (-outline.cy) + ")");
+          flip.appendChild(host);
+        }
+        var path = svgEl("path");
+        path.setAttribute("d", outline.d);
+        path.setAttribute("fill", "currentColor");
+        host.appendChild(path);
+        svg.appendChild(flip);
+        load.appendChild(svg);
+      }
+      var name = document.createElement("span");
+      name.className = "preset-name";
+      name.textContent = caption;
+      load.appendChild(name);
       var drop = document.createElement("button");
       drop.type = "button";
       drop.className = "preset-drop";
@@ -4615,8 +4705,22 @@ html[data-open] #gate {
   }
 
   function savePreset() {
+    var records = shapesToSave();
+    if (!records.length) return;
     var list = loadPresets();
-    list.push({ name: presetName(list), spec: copySpec(currentShapeSpec()) });
+    records.forEach(function (record) {
+      var outline = shapeOutline(record.g);
+      if (!outline) return;
+      list.push({
+        name: presetName(list),
+        spec: copySpec(record.spec),
+        pct: record.pct != null && Number.isFinite(record.pct) ? record.pct : null,
+        d: outline.d,
+        view: outline.view,
+        cx: outline.cx,
+        cy: outline.cy
+      });
+    });
     storePresets(list);
     renderPresets();
   }
@@ -4646,7 +4750,11 @@ html[data-open] #gate {
       if (box) box.checked = !!item.spec[key + "On"];
       syncRadiusToggle(key, false);
     });
-    draw();
+    presetHold = item.pct != null && Number.isFinite(item.pct) ? item.pct : null;
+    interpolateOn = false;
+    betweenOn = false;
+    posterOn = false;
+    setMode("grid");
   }
 
   function onPresetClick(event) {
