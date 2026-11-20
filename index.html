@@ -725,7 +725,25 @@ h2.section {
 }
 
 #save-preset {
+  margin-top: 4px;
+}
+
+.preset-save {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
   margin-top: 14px;
+  letter-spacing: 0;
+}
+
+#preset-name-input,
+.preset .preset-name {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid var(--ink);
+  background: transparent;
+  font-size: 9px;
+  padding: 2px 4px;
 }
 
 #preset-list {
@@ -756,7 +774,9 @@ h2.section {
   height: 72px;
 }
 
-.preset .preset-name {
+.preset .preset-pct {
+  display: block;
+  margin-top: 1px;
   font-size: 9px;
   letter-spacing: 0;
 }
@@ -1205,6 +1225,9 @@ html[data-open] #gate {
         <button type="button" id="shape" aria-pressed="false">SHAPE ONLY</button>
 
         <h2 class="section">PRESETS</h2>
+        <label class="preset-save" for="preset-name-input">NAME
+          <input id="preset-name-input" type="text" maxlength="32" autocomplete="off" spellcheck="false">
+        </label>
         <button type="button" id="save-preset">SAVE PRESET</button>
         <div id="preset-list"></div>
 
@@ -1717,7 +1740,14 @@ html[data-open] #gate {
   document.getElementById("export-picked-svg").addEventListener("click", exportPickedSvg);
   document.getElementById("export-picked-pdf").addEventListener("click", exportPickedPdf);
   document.getElementById("save-preset").addEventListener("click", savePreset);
+  document.getElementById("preset-name-input").addEventListener("keydown", function (event) {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      savePreset();
+    }
+  });
   document.getElementById("preset-list").addEventListener("click", onPresetClick);
+  document.getElementById("preset-list").addEventListener("change", onPresetRename);
   renderPresets();
   document.getElementById("export-interpolate").addEventListener("click", exportInterpolatePdf);
 
@@ -4643,6 +4673,10 @@ html[data-open] #gate {
     return outline;
   }
 
+  function cleanPresetName(value) {
+    return String(value || "").replace(/\s+/g, " ").trim().slice(0, 32);
+  }
+
   function presetName(list) {
     var n = 1;
     list.forEach(function (item) {
@@ -4666,7 +4700,7 @@ html[data-open] #gate {
       load.type = "button";
       load.className = "preset-load";
       load.setAttribute("data-preset", String(index));
-      var caption = item.name + (item.pct != null && Number.isFinite(item.pct) ? "  " + trimNum(item.pct) + "%" : "");
+      var caption = item.name;
       load.setAttribute("aria-label", "Preset " + caption);
       load.title = item.spec ? specText(item.spec) : caption;
       if (outline) {
@@ -4688,17 +4722,29 @@ html[data-open] #gate {
         svg.appendChild(flip);
         load.appendChild(svg);
       }
-      var name = document.createElement("span");
+      var name = document.createElement("input");
       name.className = "preset-name";
-      name.textContent = caption;
-      load.appendChild(name);
+      name.type = "text";
+      name.maxLength = 32;
+      name.value = item.name;
+      name.setAttribute("data-preset-name", String(index));
+      name.setAttribute("aria-label", "Name preset " + item.name);
+      name.setAttribute("autocomplete", "off");
+      name.setAttribute("spellcheck", "false");
+      row.appendChild(load);
+      row.appendChild(name);
+      if (item.pct != null && Number.isFinite(item.pct)) {
+        var pct = document.createElement("span");
+        pct.className = "preset-pct";
+        pct.textContent = trimNum(item.pct) + "%";
+        row.appendChild(pct);
+      }
       var drop = document.createElement("button");
       drop.type = "button";
       drop.className = "preset-drop";
       drop.setAttribute("data-preset-drop", String(index));
       drop.setAttribute("aria-label", "Remove preset " + item.name);
       drop.textContent = "×";
-      row.appendChild(load);
       row.appendChild(drop);
       list.appendChild(row);
     });
@@ -4708,11 +4754,15 @@ html[data-open] #gate {
     var records = shapesToSave();
     if (!records.length) return;
     var list = loadPresets();
-    records.forEach(function (record) {
+    var given = cleanPresetName(document.getElementById("preset-name-input").value);
+    records.forEach(function (record, index) {
       var outline = shapeOutline(record.g);
       if (!outline) return;
+      var name = given;
+      if (!name) name = presetName(list);
+      else if (records.length > 1 && index > 0) name = given + " " + (index + 1);
       list.push({
-        name: presetName(list),
+        name: name,
         spec: copySpec(record.spec),
         pct: record.pct != null && Number.isFinite(record.pct) ? record.pct : null,
         d: outline.d,
@@ -4721,6 +4771,21 @@ html[data-open] #gate {
         cy: outline.cy
       });
     });
+    storePresets(list);
+    document.getElementById("preset-name-input").value = "";
+    renderPresets();
+  }
+
+  function onPresetRename(event) {
+    var input = event.target.closest("[data-preset-name]");
+    if (!input) return;
+    var list = loadPresets();
+    var index = parseInt(input.getAttribute("data-preset-name"), 10);
+    var item = list[index];
+    if (!item) return;
+    var name = cleanPresetName(input.value);
+    if (!name) name = item.name;
+    item.name = name;
     storePresets(list);
     renderPresets();
   }
