@@ -559,6 +559,10 @@ h2.section {
   min-width: 0;
 }
 
+#size-range {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+}
+
 .iter-count {
   min-width: 3ch;
   padding-bottom: 3px;
@@ -1323,9 +1327,10 @@ html[data-open] #gate {
               <label for="size-start">START<input id="size-start" type="number" min="0" max="100" step="any" value="0" autocomplete="off"></label>
               <label for="size-end">END<input id="size-end" type="number" min="0" max="100" step="any" value="100" autocomplete="off"></label>
               <label for="size-step">STEP<input id="size-step" type="number" min="0.001" step="any" value="1" autocomplete="off"></label>
+              <label for="size-density">DENSITY<input id="size-density" type="number" min="2" max="40" step="1" value="12" autocomplete="off"></label>
             </div>
           </div>
-          <p class="note">0% to 100%. Start, end, and step can be decimals.</p>
+          <p class="note">0% to 100%. Density is how many shapes fit across the page.</p>
         </div>
         <button type="button" id="open-picked" hidden>OPEN IN GRID</button>
         <button type="button" id="export-picked-svg" hidden>EXPORT SHAPE SVG</button>
@@ -1597,7 +1602,7 @@ html[data-open] #gate {
     document.getElementById("size-range").hidden = !sizeOn;
     draw();
   });
-  ["size-start", "size-end", "size-step"].forEach(function (id) {
+  ["size-start", "size-end", "size-step", "size-density"].forEach(function (id) {
     document.getElementById(id).addEventListener("input", function () { draw(); });
   });
   document.getElementById("poster").addEventListener("click", function () {
@@ -3219,8 +3224,13 @@ html[data-open] #gate {
     });
     var areaW = PAGE_W - 2 * MARGIN;
     var areaH = PAGE_H - 2 * MARGIN - HEADER_H;
-    var colsPer = SOLO_COLS;
-    var rowsPer = SOLO_ROWS;
+    var across = Math.round(readNum("size-density"));
+    if (!Number.isFinite(across)) across = 12;
+    across = clamp(across, 2, 40);
+    var colsPer = across;
+    var rowsNeeded = Math.max(1, Math.ceil(values.length / colsPer));
+    var maxRows = Math.max(1, Math.floor(areaH / MIN_CELL));
+    var rowsPer = Math.min(rowsNeeded, maxRows);
     var cellW = areaW / colsPer;
     var cellH = areaH / rowsPer;
     var perPage = colsPer * rowsPer;
@@ -3283,7 +3293,7 @@ html[data-open] #gate {
       );
     }
     var label = item ? trimNum(item.pct) + "%" : "";
-    var numSize = clamp(Math.min(w, h) * 0.09, 5.5, 22);
+    var numSize = clamp(Math.min(w, h) * 0.16, 3.2, 11);
     painter.text(label, x + 2.2, y + numSize + 1.5, numSize);
     painter.cell(x, y, w, h, n, picked.indexOf(n) !== -1, n === active);
   }
