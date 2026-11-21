@@ -699,6 +699,8 @@ h2.section {
 #export-poster-eps,
 #load-json,
 #load-svg,
+#trace,
+#clear-trace,
 #open-picked,
 #export-picked-svg,
 #export-picked-pdf,
@@ -1158,6 +1160,9 @@ input:focus-visible {
           <input id="load-json-file" type="file" accept=".json,application/json" hidden>
           <button type="button" id="load-svg">LOAD SVG</button>
           <input id="load-svg-file" type="file" accept=".svg,image/svg+xml" hidden>
+          <button type="button" id="trace">TRACE</button>
+          <input id="trace-file" type="file" accept=".svg,image/svg+xml" hidden>
+          <button type="button" id="clear-trace" hidden>CLEAR TRACE</button>
           <p class="note" id="load-json-note" hidden></p>
           <button type="button" id="export-svg">EXPORT SVG</button>
           <button type="button" id="export-pdf">EXPORT PDF</button>
@@ -1441,6 +1446,7 @@ input:focus-visible {
   var mode = "grid";
   var shapeOnly = false;
   var presetHold = null;
+  var traceOutline = null;
   var posterOn = false;
   var sizeOn = false;
   var sizeAnchor = null;
@@ -1677,6 +1683,15 @@ input:focus-visible {
     event.target.value = "";
     if (file) loadSvgFile(file);
   });
+  document.getElementById("trace").addEventListener("click", function () {
+    document.getElementById("trace-file").click();
+  });
+  document.getElementById("trace-file").addEventListener("change", function (event) {
+    var file = event.target.files && event.target.files[0];
+    event.target.value = "";
+    if (file) loadTraceFile(file);
+  });
+  document.getElementById("clear-trace").addEventListener("click", clearTrace);
   document.getElementById("export-svg").addEventListener("click", exportViewSvg);
   document.getElementById("export-pdf").addEventListener("click", exportViewPdf);
   document.getElementById("export-all").addEventListener("click", exportAllPdf);
@@ -2056,11 +2071,12 @@ input:focus-visible {
     var g = preview || lastGood;
     if (!g) return;
     lastGood = g;
-    var box = frameOf(g);
+    var box = frameOf(g, traceOutline);
     stage.setAttribute("viewBox", box.view);
     var root = svgEl("g");
     root.setAttribute("transform", "scale(1 -1)");
     stage.appendChild(root);
+    paintTrace(root);
     var paintRoot = root;
     if (presetHold != null) {
       var held = bounds(g.samples || g.poly);
@@ -2075,8 +2091,9 @@ input:focus-visible {
     updatePicked(p);
   }
 
-  function frameOf(g) {
+  function frameOf(g, extra) {
     var pts = (g.samples || g.poly).slice().concat(g.guidePts || []);
+    if (extra && extra.length) pts = pts.concat(extra);
     var b = bounds(pts);
     var span = Math.max(b.maxX - b.minX, b.maxY - b.minY, 1);
     var pad = span * 0.12;
@@ -5425,6 +5442,49 @@ input:focus-visible {
     var fitted = refineReadSpec(spec, drawing.outline, { arm: !!arms.length, length: !!arms.length, stem: !!stemLine, r1: !!joint });
     if (!(fitted.gap < Math.max(spec.length, spec.stem) * 0.08)) return null;
     return fitted;
+  }
+
+  function paintTrace(parent) {
+    if (!traceOutline || traceOutline.length < 4) return;
+    var node = polyEl(traceOutline, "#3a7bd5", "#3a7bd5", 1.4, null);
+    node.setAttribute("fill-opacity", "0.16");
+    node.setAttribute("vector-effect", "non-scaling-stroke");
+    node.setAttribute("pointer-events", "none");
+    node.setAttribute("data-trace", "1");
+    parent.appendChild(node);
+  }
+
+  function syncTraceChrome() {
+    var clear = document.getElementById("clear-trace");
+    if (clear) clear.hidden = !traceOutline;
+  }
+
+  function clearTrace() {
+    traceOutline = null;
+    var note = document.getElementById("load-json-note");
+    if (note) note.hidden = true;
+    syncTraceChrome();
+    draw();
+  }
+
+  function loadTraceFile(file) {
+    var note = document.getElementById("load-json-note");
+    var reader = new FileReader();
+    reader.onload = function () {
+      var drawing = readSvgDrawing(String(reader.result || ""));
+      if (!drawing || !drawing.outline || drawing.outline.length < 4) {
+        if (note) {
+          note.hidden = false;
+          note.textContent = "This SVG has no shape to trace.";
+        }
+        return;
+      }
+      traceOutline = drawing.outline.map(function (p) { return { x: p.x, y: p.y }; });
+      if (note) note.hidden = true;
+      syncTraceChrome();
+      draw();
+    };
+    reader.readAsText(file);
   }
 
   function loadSvgFile(file) {
