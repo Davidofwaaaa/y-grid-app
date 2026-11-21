@@ -729,6 +729,23 @@ h2.section {
   margin-top: 14px;
 }
 
+#trace-opacity-wrap {
+  margin-top: 8px;
+  margin-bottom: 8px;
+}
+
+#trace-opacity-wrap .field-row {
+  margin-top: 0;
+}
+
+#shape-opacity-wrap {
+  margin-top: 10px;
+}
+
+#shape-opacity-wrap .field-row {
+  margin-top: 0;
+}
+
 #export-svg {
   margin-top: -1px;
 }
@@ -1101,6 +1118,18 @@ input:focus-visible {
           </div>
         </details>
 
+        <div class="fields" id="shape-opacity-wrap">
+          <div class="param">
+            <div class="field-row">
+              <label for="shape-opacity">SHAPE</label>
+              <span class="row-end">
+                <input id="shape-opacity" type="number" min="0" max="100" step="1" value="100" autocomplete="off">
+              </span>
+            </div>
+            <input id="shape-opacity-range" type="range" min="0" max="100" step="1" value="100" aria-label="Shape opacity">
+          </div>
+        </div>
+
         <h2 class="section">LAYERS</h2>
         <table class="guides">
           <tbody>
@@ -1163,6 +1192,17 @@ input:focus-visible {
           <button type="button" id="trace">TRACE</button>
           <input id="trace-file" type="file" accept=".svg,image/svg+xml" hidden>
           <button type="button" id="clear-trace" hidden>CLEAR TRACE</button>
+          <div id="trace-opacity-wrap" class="fields" hidden>
+            <div class="param">
+              <div class="field-row">
+                <label for="trace-opacity">TRACE</label>
+                <span class="row-end">
+                  <input id="trace-opacity" type="number" min="0" max="100" step="1" value="40" autocomplete="off" aria-label="Trace opacity percent">
+                </span>
+              </div>
+              <input id="trace-opacity-range" type="range" min="0" max="100" step="1" value="40" aria-label="Trace opacity">
+            </div>
+          </div>
           <p class="note" id="load-json-note" hidden></p>
           <button type="button" id="export-svg">EXPORT SVG</button>
           <button type="button" id="export-pdf">EXPORT PDF</button>
@@ -1447,6 +1487,8 @@ input:focus-visible {
   var shapeOnly = false;
   var presetHold = null;
   var traceOutline = null;
+  var traceOpacity = 0.4;
+  var shapeOpacity = 1;
   var posterOn = false;
   var sizeOn = false;
   var sizeAnchor = null;
@@ -1692,6 +1734,18 @@ input:focus-visible {
     if (file) loadTraceFile(file);
   });
   document.getElementById("clear-trace").addEventListener("click", clearTrace);
+  document.getElementById("trace-opacity").addEventListener("input", function (event) {
+    applyTraceOpacity(event.target.value, "num");
+  });
+  document.getElementById("trace-opacity-range").addEventListener("input", function (event) {
+    applyTraceOpacity(event.target.value, "range");
+  });
+  document.getElementById("shape-opacity").addEventListener("input", function (event) {
+    applyShapeOpacity(event.target.value, "num");
+  });
+  document.getElementById("shape-opacity-range").addEventListener("input", function (event) {
+    applyShapeOpacity(event.target.value, "range");
+  });
   document.getElementById("export-svg").addEventListener("click", exportViewSvg);
   document.getElementById("export-pdf").addEventListener("click", exportViewPdf);
   document.getElementById("export-all").addEventListener("click", exportAllPdf);
@@ -2087,7 +2141,7 @@ input:focus-visible {
       root.appendChild(scaled);
       paintRoot = scaled;
     }
-    paintConstruction(svgPainter(paintRoot), g, { hair: false, shapeBlack: shapeOnly });
+    paintConstruction(svgPainter(paintRoot), g, { hair: false, shapeBlack: shapeOnly, shapeOpacity: shapeOpacity });
     updatePicked(p);
   }
 
@@ -2776,7 +2830,11 @@ input:focus-visible {
   function paintConstruction(painter, g, opt) {
     var sw = Math.max(g.length, g.stem) * 0.0026;
     if (opt.hair) sw = 1.15;
-    painter.fill(g.shape || g.poly, opt.shapeBlack ? INK : FILL);
+    var shapeNode = painter.fill(g.shape || g.poly, opt.shapeBlack ? INK : FILL);
+    if (shapeNode && shapeNode.setAttribute && opt.shapeOpacity != null) {
+      shapeNode.setAttribute("data-shape", "1");
+      shapeNode.setAttribute("opacity", String(opt.shapeOpacity));
+    }
     if (opt.shapeBlack) return;
     if (layerOn("rd")) {
       (g.circles || []).forEach(function (circle) {
@@ -5920,15 +5978,48 @@ input:focus-visible {
     if (!traceOutline || traceOutline.length < 4) return;
     var node = polyEl(traceOutline, "#3a7bd5", "#3a7bd5", 1.4, null);
     node.setAttribute("fill-opacity", "0.16");
+    node.setAttribute("opacity", String(traceOpacity));
     node.setAttribute("vector-effect", "non-scaling-stroke");
     node.setAttribute("pointer-events", "none");
     node.setAttribute("data-trace", "1");
     parent.appendChild(node);
   }
 
+  function applyTraceOpacity(percent, source) {
+    var n = parseFloat(percent);
+    if (!isFinite(n)) n = 40;
+    if (n < 0) n = 0;
+    if (n > 100) n = 100;
+    traceOpacity = n / 100;
+    var shown = String(Math.round(n));
+    var range = document.getElementById("trace-opacity-range");
+    var num = document.getElementById("trace-opacity");
+    if (range && source !== "range") range.value = shown;
+    if (num && source !== "num") num.value = shown;
+    var painted = stage.querySelector("[data-trace='1']");
+    if (painted) painted.setAttribute("opacity", String(traceOpacity));
+  }
+
+  function applyShapeOpacity(percent, source) {
+    var n = parseFloat(percent);
+    if (!isFinite(n)) n = 100;
+    if (n < 0) n = 0;
+    if (n > 100) n = 100;
+    shapeOpacity = n / 100;
+    var shown = String(Math.round(n));
+    var range = document.getElementById("shape-opacity-range");
+    var num = document.getElementById("shape-opacity");
+    if (range && source !== "range") range.value = shown;
+    if (num && source !== "num") num.value = shown;
+    var painted = stage.querySelector("[data-shape='1']");
+    if (painted) painted.setAttribute("opacity", String(shapeOpacity));
+  }
+
   function syncTraceChrome() {
     var clear = document.getElementById("clear-trace");
     if (clear) clear.hidden = !traceOutline;
+    var wrap = document.getElementById("trace-opacity-wrap");
+    if (wrap) wrap.hidden = !traceOutline;
   }
 
   function clearTrace() {
@@ -6260,7 +6351,11 @@ input:focus-visible {
   function svgPainter(parent, hits) {
     if (hits == null) hits = true;
     return {
-      fill: function (pts, color) { parent.appendChild(polyEl(pts, color, null, 0, null)); },
+      fill: function (pts, color) {
+        var node = polyEl(pts, color, null, 0, null);
+        parent.appendChild(node);
+        return node;
+      },
       stroke: function (pts, color, width) { parent.appendChild(polyEl(pts, "none", color, width, null, true)); },
       line: function (a, b, color, width, dash) {
         var node = svgEl("line");
