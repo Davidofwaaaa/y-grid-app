@@ -4812,8 +4812,20 @@ input:focus-visible {
     var cy = 0;
     var sx = 0;
     var sy = 0;
-    function num() { return parseFloat(tokens[i++]); }
-    function add(x, y) { cx = x; cy = y; pts.push({ x: x, y: y }); }
+    var prev = "";
+    var c2x = 0;
+    var c2y = 0;
+    var qx = 0;
+    var qy = 0;
+    function num() {
+      if (i >= tokens.length || /[A-Za-z]/.test(tokens[i])) return NaN;
+      return parseFloat(tokens[i++]);
+    }
+    function add(x, y) {
+      cx = x;
+      cy = y;
+      pts.push({ x: x, y: y });
+    }
     function cubic(x1, y1, x2, y2, x, y) {
       var x0 = cx;
       var y0 = cy;
@@ -4826,29 +4838,164 @@ input:focus-visible {
           u * u * u * y0 + 3 * u * u * t * y1 + 3 * u * t * t * y2 + t * t * t * y
         );
       }
+      c2x = x2;
+      c2y = y2;
+      prev = "C";
+    }
+    function quad(x1, y1, x, y) {
+      cubic(
+        cx + (2 / 3) * (x1 - cx),
+        cy + (2 / 3) * (y1 - cy),
+        x + (2 / 3) * (x1 - x),
+        y + (2 / 3) * (y1 - y),
+        x,
+        y
+      );
+      qx = x1;
+      qy = y1;
+      prev = "Q";
+    }
+    function sampleArc(x0, y0, rx, ry, phiDeg, large, sweep, x, y) {
+      if (!Number.isFinite(x) || !Number.isFinite(y)) return;
+      if (Math.hypot(x - x0, y - y0) < 1e-8) return;
+      rx = Math.abs(rx);
+      ry = Math.abs(ry);
+      if (!(rx > 1e-8) || !(ry > 1e-8)) { add(x, y); return; }
+      var phi = (phiDeg || 0) * Math.PI / 180;
+      var cos = Math.cos(phi);
+      var sin = Math.sin(phi);
+      var dx = (x0 - x) / 2;
+      var dy = (y0 - y) / 2;
+      var x1p = cos * dx + sin * dy;
+      var y1p = -sin * dx + cos * dy;
+      var rx2 = rx * rx;
+      var ry2 = ry * ry;
+      var lam = (x1p * x1p) / rx2 + (y1p * y1p) / ry2;
+      if (lam > 1) {
+        var grow = Math.sqrt(lam);
+        rx *= grow;
+        ry *= grow;
+        rx2 = rx * rx;
+        ry2 = ry * ry;
+      }
+      var x1p2 = x1p * x1p;
+      var y1p2 = y1p * y1p;
+      var arcNum = rx2 * ry2 - rx2 * y1p2 - ry2 * x1p2;
+      var arcDen = rx2 * y1p2 + ry2 * x1p2;
+      var coef = ((large ? 1 : 0) === (sweep ? 1 : 0) ? -1 : 1) * Math.sqrt(Math.max(0, arcNum) / (arcDen || 1));
+      var cxp = coef * (rx * y1p / ry);
+      var cyp = coef * (-ry * x1p / rx);
+      var cxA = cos * cxp - sin * cyp + (x0 + x) / 2;
+      var cyA = sin * cxp + cos * cyp + (y0 + y) / 2;
+      function turn(ux, uy, vx, vy) {
+        var ul = Math.hypot(ux, uy);
+        var vl = Math.hypot(vx, vy);
+        var ang = ul && vl ? Math.acos(clamp((ux * vx + uy * vy) / (ul * vl), -1, 1)) : 0;
+        if (ux * vy - uy * vx < 0) ang = -ang;
+        return ang;
+      }
+      var theta1 = turn(1, 0, (x1p - cxp) / rx, (y1p - cyp) / ry);
+      var dtheta = turn((x1p - cxp) / rx, (y1p - cyp) / ry, (-x1p - cxp) / rx, (-y1p - cyp) / ry);
+      if (!sweep && dtheta > 0) dtheta -= 2 * Math.PI;
+      if (sweep && dtheta < 0) dtheta += 2 * Math.PI;
+      var steps = Math.max(8, Math.min(64, Math.ceil(Math.abs(dtheta) / (Math.PI / 9))));
+      var k;
+      for (k = 1; k <= steps; k++) {
+        var th = theta1 + dtheta * (k / steps);
+        var px = rx * Math.cos(th);
+        var py = ry * Math.sin(th);
+        add(cos * px - sin * py + cxA, sin * px + cos * py + cyA);
+      }
     }
     while (i < tokens.length) {
+      var at = i;
       if (/[A-Za-z]/.test(tokens[i])) cmd = tokens[i++];
-      if (cmd === "M" || cmd === "L") {
-        var x = num();
-        var y = num();
-        if (cmd === "M") { sx = x; sy = y; }
-        add(x, y);
-        if (cmd === "M") cmd = "L";
-      } else if (cmd === "C") {
+      if (!cmd) break;
+      var rel = cmd === cmd.toLowerCase();
+      var upper = cmd.toUpperCase();
+      if (upper === "M") {
+        var mx = num();
+        var my = num();
+        if (!Number.isFinite(mx) || !Number.isFinite(my)) break;
+        if (rel) { mx += cx; my += cy; }
+        sx = mx;
+        sy = my;
+        add(mx, my);
+        cmd = rel ? "l" : "L";
+        prev = "M";
+      } else if (upper === "L") {
+        var lx = num();
+        var ly = num();
+        if (!Number.isFinite(lx) || !Number.isFinite(ly)) break;
+        if (rel) { lx += cx; ly += cy; }
+        add(lx, ly);
+        prev = "L";
+      } else if (upper === "H") {
+        var hx = num();
+        if (!Number.isFinite(hx)) break;
+        add(rel ? cx + hx : hx, cy);
+        prev = "L";
+      } else if (upper === "V") {
+        var vy = num();
+        if (!Number.isFinite(vy)) break;
+        add(cx, rel ? cy + vy : vy);
+        prev = "L";
+      } else if (upper === "C") {
         var x1 = num();
         var y1 = num();
         var x2 = num();
         var y2 = num();
         var xe = num();
         var ye = num();
+        if (![x1, y1, x2, y2, xe, ye].every(Number.isFinite)) break;
+        if (rel) { x1 += cx; y1 += cy; x2 += cx; y2 += cy; xe += cx; ye += cy; }
         cubic(x1, y1, x2, y2, xe, ye);
-      } else if (cmd === "Z" || cmd === "z") {
+      } else if (upper === "S") {
+        var sx2 = num();
+        var sy2 = num();
+        var sxe = num();
+        var sye = num();
+        if (![sx2, sy2, sxe, sye].every(Number.isFinite)) break;
+        var sx1 = prev === "C" ? 2 * cx - c2x : cx;
+        var sy1 = prev === "C" ? 2 * cy - c2y : cy;
+        if (rel) { sx2 += cx; sy2 += cy; sxe += cx; sye += cy; }
+        cubic(sx1, sy1, sx2, sy2, sxe, sye);
+      } else if (upper === "Q") {
+        var qcx = num();
+        var qcy = num();
+        var qex = num();
+        var qey = num();
+        if (![qcx, qcy, qex, qey].every(Number.isFinite)) break;
+        if (rel) { qcx += cx; qcy += cy; qex += cx; qey += cy; }
+        quad(qcx, qcy, qex, qey);
+      } else if (upper === "T") {
+        var tx = num();
+        var ty = num();
+        if (!Number.isFinite(tx) || !Number.isFinite(ty)) break;
+        if (rel) { tx += cx; ty += cy; }
+        var tcx = prev === "Q" ? 2 * cx - qx : cx;
+        var tcy = prev === "Q" ? 2 * cy - qy : cy;
+        quad(tcx, tcy, tx, ty);
+      } else if (upper === "A") {
+        var arx = num();
+        var ary = num();
+        var aang = num();
+        var alarge = num();
+        var asweep = num();
+        var ax = num();
+        var ay = num();
+        if (![arx, ary, aang, alarge, asweep, ax, ay].every(Number.isFinite)) break;
+        if (rel) { ax += cx; ay += cy; }
+        sampleArc(cx, cy, arx, ary, aang, alarge, asweep, ax, ay);
+        prev = "A";
+      } else if (upper === "Z") {
         add(sx, sy);
+        prev = "Z";
         cmd = "";
       } else {
         break;
       }
+      if (i === at) break;
     }
     return pts;
   }
@@ -4862,12 +5009,343 @@ input:focus-visible {
     return text;
   }
 
+  function svgStyleMap(doc) {
+    var css = "";
+    Array.prototype.forEach.call(doc.querySelectorAll("style"), function (node) {
+      css += "\n" + (node.textContent || "");
+    });
+    css = css.replace(/\/\*[\s\S]*?\*\//g, "");
+    var map = { class: {}, tag: {} };
+    var re = /([^{}@]+)\{([^}]*)\}/g;
+    var match;
+    while ((match = re.exec(css))) {
+      var body = match[2];
+      match[1].split(",").forEach(function (raw) {
+        var sel = raw.trim().split(/\s+/)[0].split(/[>+~]/)[0];
+        if (!sel || sel.charAt(0) === "#" || sel.indexOf("[") >= 0 || sel.indexOf(":") >= 0) return;
+        if (sel.charAt(0) === ".") map.class[sel.slice(1)] = body;
+        else map.tag[sel.toLowerCase()] = body;
+      });
+    }
+    return map;
+  }
+
+  function svgStyleProp(css, prop) {
+    var re = new RegExp("(?:^|[;\\s])" + prop + "\\s*:\\s*([^;}{]+)", "i");
+    var match = re.exec(String(css || ""));
+    if (!match) return null;
+    var value = match[1].replace(/!important/gi, "").trim();
+    return value || null;
+  }
+
+  function svgDeclared(node, prop, map) {
+    var styled = svgStyleProp(node.getAttribute("style"), prop);
+    if (styled) return styled;
+    var classes = (node.getAttribute("class") || "").trim().split(/\s+/);
+    var i;
+    for (i = 0; i < classes.length; i++) {
+      if (!classes[i] || !map.class[classes[i]]) continue;
+      var fromClass = svgStyleProp(map.class[classes[i]], prop);
+      if (fromClass) return fromClass;
+    }
+    var tag = (node.tagName || "").toLowerCase();
+    if (map.tag[tag]) {
+      var fromTag = svgStyleProp(map.tag[tag], prop);
+      if (fromTag) return fromTag;
+    }
+    if (map.tag["*"]) {
+      var fromAny = svgStyleProp(map.tag["*"], prop);
+      if (fromAny) return fromAny;
+    }
+    var attr = node.getAttribute(prop);
+    if (attr != null && String(attr).trim() !== "") return String(attr).trim();
+    return null;
+  }
+
+  function svgPaint(node, prop, map) {
+    var cur = node;
+    while (cur && cur.getAttribute) {
+      var value = svgDeclared(cur, prop, map);
+      if (value != null) {
+        if (value.toLowerCase() === "inherit") {
+          cur = cur.parentNode;
+          continue;
+        }
+        return value;
+      }
+      if ((cur.tagName || "").toLowerCase() === "svg") break;
+      cur = cur.parentNode;
+    }
+    return prop === "fill" ? "#000000" : "none";
+  }
+
+  function svgNone(value) {
+    var text = String(value || "").trim().toLowerCase();
+    return !text || text === "none" || text === "transparent";
+  }
+
+  function svgHidden(node) {
+    var cur = node;
+    while (cur && cur.getAttribute) {
+      var tag = (cur.tagName || "").toLowerCase();
+      if (tag === "defs" || tag === "clippath" || tag === "mask" || tag === "pattern" || tag === "symbol") return true;
+      if (cur.getAttribute("display") === "none" || cur.getAttribute("visibility") === "hidden") return true;
+      var style = cur.getAttribute("style") || "";
+      if (/display\s*:\s*none/i.test(style) || /visibility\s*:\s*hidden/i.test(style)) return true;
+      if (tag === "svg") break;
+      cur = cur.parentNode;
+    }
+    return false;
+  }
+
+  function svgViewBox(root) {
+    var raw = root && root.getAttribute("viewBox");
+    if (!raw) return null;
+    var nums = raw.trim().split(/[\s,]+/).map(parseFloat);
+    if (nums.length < 4 || !(nums[2] > 0) || !(nums[3] > 0)) return null;
+    return { x: nums[0], y: nums[1], w: nums[2], h: nums[3] };
+  }
+
+  function svgIdent() {
+    return { a: 1, b: 0, c: 0, d: 1, e: 0, f: 0 };
+  }
+
+  function svgMul(A, B) {
+    return {
+      a: A.a * B.a + A.c * B.b,
+      b: A.b * B.a + A.d * B.b,
+      c: A.a * B.c + A.c * B.d,
+      d: A.b * B.c + A.d * B.d,
+      e: A.a * B.e + A.c * B.f + A.e,
+      f: A.b * B.e + A.d * B.f + A.f
+    };
+  }
+
+  function svgApply(m, x, y) {
+    return { x: m.a * x + m.c * y + m.e, y: m.b * x + m.d * y + m.f };
+  }
+
+  function svgParseTransform(text) {
+    var m = svgIdent();
+    if (!text) return m;
+    var re = /(matrix|translate|scale|rotate|skewX|skewY)\s*\(([^)]*)\)/gi;
+    var match;
+    while ((match = re.exec(text))) {
+      var kind = match[1].toLowerCase();
+      var nums = (match[2].match(/[-+]?(?:\d*\.\d+|\d+)(?:[eE][-+]?\d+)?/g) || []).map(parseFloat);
+      var t = svgIdent();
+      if (kind === "matrix" && nums.length >= 6) {
+        t.a = nums[0];
+        t.b = nums[1];
+        t.c = nums[2];
+        t.d = nums[3];
+        t.e = nums[4];
+        t.f = nums[5];
+      } else if (kind === "translate") {
+        t.e = nums[0] || 0;
+        t.f = nums.length > 1 ? nums[1] : 0;
+      } else if (kind === "scale") {
+        t.a = nums.length ? nums[0] : 1;
+        t.d = nums.length > 1 ? nums[1] : t.a;
+      } else if (kind === "rotate") {
+        var ang = (nums[0] || 0) * Math.PI / 180;
+        var cos = Math.cos(ang);
+        var sin = Math.sin(ang);
+        t.a = cos;
+        t.b = sin;
+        t.c = -sin;
+        t.d = cos;
+        if (nums.length >= 3) {
+          t = svgMul(
+            svgMul({ a: 1, b: 0, c: 0, d: 1, e: nums[1], f: nums[2] }, t),
+            { a: 1, b: 0, c: 0, d: 1, e: -nums[1], f: -nums[2] }
+          );
+        }
+      } else if (kind === "skewx") {
+        t.c = Math.tan((nums[0] || 0) * Math.PI / 180);
+      } else if (kind === "skewy") {
+        t.b = Math.tan((nums[0] || 0) * Math.PI / 180);
+      }
+      m = svgMul(t, m);
+    }
+    return m;
+  }
+
+  function svgNodeMatrix(node) {
+    var chain = [];
+    var cur = node;
+    while (cur && cur.getAttribute) {
+      chain.push(cur);
+      if ((cur.tagName || "").toLowerCase() === "svg") break;
+      cur = cur.parentNode;
+    }
+    var m = svgIdent();
+    var i;
+    for (i = chain.length - 1; i >= 0; i--) m = svgMul(svgParseTransform(chain[i].getAttribute("transform")), m);
+    return m;
+  }
+
+  function svgPairPoints(text) {
+    var tokens = svgTokens(text || "");
+    var pts = [];
+    var i = 0;
+    while (i + 1 < tokens.length) {
+      var x = parseFloat(tokens[i++]);
+      var y = parseFloat(tokens[i++]);
+      if (Number.isFinite(x) && Number.isFinite(y)) pts.push({ x: x, y: y });
+    }
+    return pts;
+  }
+
+  function svgClose(pts) {
+    if (pts.length < 2) return pts;
+    var a = pts[0];
+    var b = pts[pts.length - 1];
+    if (Math.hypot(a.x - b.x, a.y - b.y) > 1e-6) pts = pts.concat([{ x: a.x, y: a.y }]);
+    return pts;
+  }
+
+  function svgEllipsePts(cx, cy, rx, ry) {
+    var pts = [];
+    var n = 28;
+    var k;
+    for (k = 0; k <= n; k++) {
+      var ang = (k / n) * Math.PI * 2;
+      pts.push({ x: cx + rx * Math.cos(ang), y: cy + ry * Math.sin(ang) });
+    }
+    return pts;
+  }
+
+  function svgLocalPoints(node) {
+    var tag = (node.tagName || "").toLowerCase();
+    if (tag === "path") return svgPathPoints(node.getAttribute("d"));
+    if (tag === "polygon" || tag === "polyline") {
+      var pts = svgPairPoints(node.getAttribute("points"));
+      return tag === "polygon" ? svgClose(pts) : pts;
+    }
+    if (tag === "rect") {
+      var x = parseFloat(node.getAttribute("x"));
+      var y = parseFloat(node.getAttribute("y"));
+      var w = parseFloat(node.getAttribute("width"));
+      var h = parseFloat(node.getAttribute("height"));
+      if (!Number.isFinite(x)) x = 0;
+      if (!Number.isFinite(y)) y = 0;
+      if (!(w > 0) || !(h > 0)) return [];
+      return [
+        { x: x, y: y },
+        { x: x + w, y: y },
+        { x: x + w, y: y + h },
+        { x: x, y: y + h },
+        { x: x, y: y }
+      ];
+    }
+    if (tag === "circle" || tag === "ellipse") {
+      var cx = parseFloat(node.getAttribute("cx"));
+      var cy = parseFloat(node.getAttribute("cy"));
+      var rx = tag === "circle" ? parseFloat(node.getAttribute("r")) : parseFloat(node.getAttribute("rx"));
+      var ry = tag === "circle" ? rx : parseFloat(node.getAttribute("ry"));
+      if (!Number.isFinite(cx)) cx = 0;
+      if (!Number.isFinite(cy)) cy = 0;
+      if (!(rx > 0) || !(ry > 0)) return [];
+      return svgEllipsePts(cx, cy, rx, ry);
+    }
+    return [];
+  }
+
+  function svgBoxArea(pts) {
+    var b = bounds(pts);
+    var w = Math.max(0, b.maxX - b.minX);
+    var h = Math.max(0, b.maxY - b.minY);
+    if (w < 1e-6 && h < 1e-6) return 0;
+    return Math.max(w, 1e-3) * Math.max(h, 1e-3);
+  }
+
+  function svgCoversView(pts, view) {
+    if (!view) return false;
+    var b = bounds(pts);
+    return (b.maxX - b.minX) >= view.w * 0.92 && (b.maxY - b.minY) >= view.h * 0.92;
+  }
+
+  function svgShapes(doc, applyTransforms) {
+    var map = svgStyleMap(doc);
+    var view = svgViewBox(doc.documentElement);
+    var filled = [];
+    var stroked = [];
+    Array.prototype.forEach.call(doc.querySelectorAll("path, polygon, polyline, rect, ellipse, circle"), function (node) {
+      if (svgHidden(node)) return;
+      var local = svgLocalPoints(node);
+      if (!local || local.length < 2) return;
+      var pts = local;
+      if (applyTransforms) {
+        var matrix = svgNodeMatrix(node);
+        pts = local.map(function (p) { return svgApply(matrix, p.x, p.y); });
+      }
+      pts = pts.filter(function (p) { return Number.isFinite(p.x) && Number.isFinite(p.y); });
+      if (pts.length < 2) return;
+      var tag = (node.tagName || "").toLowerCase();
+      if (tag === "rect") {
+        var paper = svgPaint(node, "fill", map).replace(/\s+/g, "").toLowerCase();
+        if (paper === "#fff" || paper === "#ffffff" || paper === "white") return;
+        if (svgCoversView(pts, view)) return;
+      }
+      var area = svgBoxArea(pts);
+      if (!(area > 0)) return;
+      var fill = svgPaint(node, "fill", map);
+      var stroke = svgPaint(node, "stroke", map);
+      var record = { pts: pts, area: area, covers: svgCoversView(pts, view) };
+      if (!svgNone(fill)) filled.push(record);
+      else if (!svgNone(stroke)) stroked.push(record);
+    });
+    function rank(list) {
+      var open = list.filter(function (item) { return !item.covers; });
+      var pool = open.length ? open : list;
+      pool.sort(function (a, b) { return b.area - a.area; });
+      return pool;
+    }
+    return { filled: rank(filled), stroked: rank(stroked) };
+  }
+
+  function svgOwnTrace(text, doc) {
+    if (doc.documentElement && doc.documentElement.hasAttribute("data-shape")) return true;
+    return /scale\(\s*1(?:\.0+)?(?:\s+|\s*,\s*)-1(?:\.0+)?\s*\)/.test(text);
+  }
+
+  function fitTraceOutline(pts) {
+    var g = geometry(params()) || lastGood;
+    if (!g) return pts;
+    var host = bounds(g.samples || g.poly);
+    var box = bounds(pts);
+    var hw = host.maxX - host.minX;
+    var hh = host.maxY - host.minY;
+    var bw = box.maxX - box.minX;
+    var bh = box.maxY - box.minY;
+    if (!(hw > 1 && hh > 1 && bw > 1e-6 && bh > 1e-6)) return pts;
+    var scale = Math.min(hw / bw, hh / bh);
+    var cx = (box.minX + box.maxX) / 2;
+    var cy = (box.minY + box.maxY) / 2;
+    var hx = (host.minX + host.maxX) / 2;
+    var hy = (host.minY + host.maxY) / 2;
+    return pts.map(function (p) {
+      return { x: (p.x - cx) * scale + hx, y: (p.y - cy) * scale + hy };
+    });
+  }
+
+  function traceFromSvg(text) {
+    var doc = new DOMParser().parseFromString(text, "image/svg+xml");
+    if (!doc.documentElement || doc.querySelector("parsererror")) return null;
+    var shapes = svgShapes(doc, true);
+    var best = shapes.filled[0] || shapes.stroked[0];
+    if (!best || best.pts.length < 4) return null;
+    var pts = best.pts.map(function (p) { return { x: p.x, y: -p.y }; });
+    if (!svgOwnTrace(text, doc)) pts = fitTraceOutline(pts);
+    return pts;
+  }
+
   function readSvgDrawing(text) {
     var doc = new DOMParser().parseFromString(text, "image/svg+xml");
     if (doc.querySelector("parsererror")) return null;
     var lines = [];
     var circles = [];
-    var fills = [];
     Array.prototype.forEach.call(doc.querySelectorAll("line"), function (node) {
       lines.push({
         x1: parseFloat(node.getAttribute("x1")),
@@ -4887,15 +5365,9 @@ input:focus-visible {
         dash: !!node.getAttribute("stroke-dasharray")
       });
     });
-    Array.prototype.forEach.call(doc.querySelectorAll("path"), function (node) {
-      var fill = hexColor(node.getAttribute("fill"));
-      if (!fill || fill === "none" || fill === "transparent") return;
-      var pts = svgPathPoints(node.getAttribute("d"));
-      if (pts.length >= 4) fills.push(pts);
-    });
-    if (!fills.length) return null;
-    fills.sort(function (a, b) { return b.length - a.length; });
-    return { lines: lines, circles: circles, outline: fills[0] };
+    var filled = svgShapes(doc, false).filled;
+    if (!filled.length) return null;
+    return { lines: lines, circles: circles, outline: filled[0].pts };
   }
 
   function shiftDrawing(drawing, dx, dy) {
@@ -5471,15 +5943,15 @@ input:focus-visible {
     var note = document.getElementById("load-json-note");
     var reader = new FileReader();
     reader.onload = function () {
-      var drawing = readSvgDrawing(String(reader.result || ""));
-      if (!drawing || !drawing.outline || drawing.outline.length < 4) {
+      var outline = traceFromSvg(String(reader.result || ""));
+      if (!outline || outline.length < 4) {
         if (note) {
           note.hidden = false;
           note.textContent = "This SVG has no shape to trace.";
         }
         return;
       }
-      traceOutline = drawing.outline.map(function (p) { return { x: p.x, y: p.y }; });
+      traceOutline = outline.map(function (p) { return { x: p.x, y: p.y }; });
       if (note) note.hidden = true;
       syncTraceChrome();
       draw();
