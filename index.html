@@ -696,6 +696,7 @@ h2.section {
 #export-all,
 #export-poster-svg,
 #export-poster-eps,
+#load-json,
 #open-picked,
 #export-picked-svg,
 #export-picked-pdf,
@@ -720,8 +721,12 @@ h2.section {
   color: var(--ink);
 }
 
-#export-svg {
+#load-json {
   margin-top: 14px;
+}
+
+#export-svg {
+  margin-top: -1px;
 }
 
 #save-preset {
@@ -1232,6 +1237,9 @@ html[data-open] #gate {
         <div id="preset-list"></div>
 
         <div id="grid-exports">
+          <button type="button" id="load-json">LOAD JSON</button>
+          <input id="load-json-file" type="file" accept=".json,application/json" hidden>
+          <p class="note" id="load-json-note" hidden></p>
           <button type="button" id="export-svg">EXPORT SVG</button>
           <button type="button" id="export-pdf">EXPORT PDF</button>
         </div>
@@ -1733,6 +1741,14 @@ html[data-open] #gate {
     showCap = false;
     active = 0;
     draw();
+  });
+  document.getElementById("load-json").addEventListener("click", function () {
+    document.getElementById("load-json-file").click();
+  });
+  document.getElementById("load-json-file").addEventListener("change", function (event) {
+    var file = event.target.files && event.target.files[0];
+    event.target.value = "";
+    if (file) loadShapeFile(file);
   });
   document.getElementById("export-svg").addEventListener("click", exportViewSvg);
   document.getElementById("export-pdf").addEventListener("click", exportViewPdf);
@@ -4804,15 +4820,15 @@ html[data-open] #gate {
     }
   }
 
-  function applyPreset(index) {
-    var item = loadPresets()[index];
-    if (!item || !item.spec) return;
+  function applyShape(spec, pct) {
+    if (!spec) return;
     PARAMS.forEach(function (param) {
-      if (Number.isFinite(item.spec[param.key])) writeParam(param.key, item.spec[param.key]);
+      var value = parseFloat(spec[param.key]);
+      if (Number.isFinite(value)) writeParam(param.key, value);
     });
     ["r2", "r3"].forEach(function (key) {
       var box = document.getElementById(key + "-on");
-      if (box) box.checked = !!item.spec[key + "On"];
+      if (box) box.checked = !!spec[key + "On"];
       syncRadiusToggle(key, false);
     });
     PARAMS.forEach(function (param) {
@@ -4820,13 +4836,44 @@ html[data-open] #gate {
     });
     var fold = document.querySelector('.panel[aria-label="Controls"] .param-fold');
     if (fold) fold.open = true;
-    presetHold = item.pct != null && Number.isFinite(item.pct) ? item.pct : null;
+    presetHold = pct != null && Number.isFinite(pct) ? pct : null;
     interpolateOn = false;
     betweenOn = false;
     posterOn = false;
     setMode("grid");
     var panel = document.querySelector('.panel[aria-label="Controls"]');
     if (panel) panel.scrollTop = 0;
+  }
+
+  function applyPreset(index) {
+    var item = loadPresets()[index];
+    if (!item || !item.spec) return;
+    applyShape(item.spec, item.pct);
+  }
+
+  function loadShapeFile(file) {
+    var note = document.getElementById("load-json-note");
+    var reader = new FileReader();
+    reader.onload = function () {
+      var data = null;
+      try { data = JSON.parse(String(reader.result || "")); } catch (error) { data = null; }
+      var spec = data && data.spec && typeof data.spec === "object" ? data.spec : data;
+      var known = spec && PARAMS.some(function (param) {
+        return Number.isFinite(parseFloat(spec[param.key]));
+      });
+      if (!known) {
+        if (note) {
+          note.hidden = false;
+          note.textContent = "This file has no shape parameters.";
+        }
+        return;
+      }
+      if (note) note.hidden = true;
+      var pct = data.pct != null ? data.pct : data.size;
+      pct = parseFloat(pct);
+      applyShape(spec, Number.isFinite(pct) ? pct : null);
+    };
+    reader.readAsText(file);
   }
 
   function onPresetClick(event) {
