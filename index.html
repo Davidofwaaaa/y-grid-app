@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="color-scheme" content="light">
+  <meta name="color-scheme" content="dark">
   <title>TOOLS</title>
   <script>
   (function () {
@@ -16,8 +16,8 @@
   </script>
   <style>
 @font-face {
-  font-family: "IBM Plex Mono";
-  src: url("yzy/fonts/IBMPlexMono-Regular.ttf") format("truetype");
+  font-family: "Scope";
+  src: url("fonts/Scope_Book.otf") format("opentype");
   font-weight: 400;
   font-style: normal;
   font-display: block;
@@ -28,16 +28,16 @@
 html, body {
   margin: 0;
   min-height: 100%;
-  background: #fff;
-  color: #000;
-  font-family: "IBM Plex Mono", ui-monospace, monospace;
-  font-size: 11px;
+  background: #000;
+  color: #fff;
+  font-family: "Scope", sans-serif;
+  font-size: 16px;
   line-height: 1.35;
 }
 
 button, input, a { font: inherit; color: inherit; }
 
-button, a.enter { cursor: pointer; }
+button { cursor: pointer; }
 
 body {
   min-height: 100vh;
@@ -47,77 +47,68 @@ body {
   padding: 24px;
 }
 
-#gate, #menu {
-  width: 240px;
-}
+#gate, #menu { width: 240px; }
 
 html[data-open] #gate { display: none; }
 html:not([data-open]) #menu { display: none; }
 
-.mark {
-  margin: 0 0 14px;
-  padding-bottom: 6px;
-  border-bottom: 1px solid #000;
+.logo {
+  display: block;
+  width: 156px;
+  height: 5.2px;
+  margin: 0 0 22px;
+  color: #fff;
 }
 
-label { display: block; margin-bottom: 4px; }
+.logo path { fill: currentColor; }
 
-input, button, a.enter {
+label { display: block; margin-bottom: 6px; }
+
+input, button {
   display: block;
   width: 100%;
   background: transparent;
-  border: 1px solid #000;
+  border: 1px solid #fff;
   border-radius: 0;
-  padding: 3px 6px;
+  padding: 6px 8px;
   text-align: left;
-  text-decoration: none;
 }
 
 #gate-key { margin-bottom: 8px; }
-#gate button { margin-bottom: 8px; }
 
-#gate-note, #place {
+#gate-note {
   min-height: 1.35em;
-  margin: 8px 0;
+  margin: 8px 0 0;
 }
-
-#current {
-  margin: 0 0 10px;
-  font-size: 22px;
-  line-height: 1.1;
-}
-
-.row {
-  display: flex;
-  margin-bottom: 8px;
-}
-
-.row button {
-  width: 50%;
-}
-
-.row button + button { margin-left: -1px; }
 
 #list {
   list-style: none;
-  margin: 14px 0 0;
+  margin: 0 0 8px;
   padding: 0;
-  border-top: 1px solid #000;
 }
 
-#list button {
-  border-top: 0;
-}
+#list button { border-bottom: 0; }
 
-#list button[aria-current="true"] {
-  background: #e6e6e6;
-}
+#list li:last-child button { border-bottom: 1px solid #fff; }
+
+#list button[aria-current="true"] { background: #2a2a2a; }
+
+#load { margin-top: 8px; }
   </style>
 </head>
 <body>
   <div id="gate">
     <form id="gate-form" autocomplete="off">
-      <p class="mark">TERRAIN</p>
+      <svg class="logo" width="156" height="5.2" viewBox="0 0 120 4" role="img" aria-label="Terrain">
+        <path d="M0 0.000293255L1.6804e-07 3.84436L16.434 3.84436L16.434 0.000292536L0 0.000293255Z"/>
+        <path d="M18.6514 4.91142e-05L18.6514 3.84412L33.6372 3.84412L33.6372 4.84592e-05L18.6514 4.91142e-05Z"/>
+        <path d="M47.5608 4.86426e-05L36.7715 4.91142e-05L36.7715 3.84412L53.1227 3.84412C52.3814 1.6115 50.3814 4.85193e-05 47.5608 4.86426e-05Z"/>
+        <path d="M67.3977 4.86426e-05L56.6084 4.91142e-05L56.6084 3.84412L72.9597 3.84412C72.2217 1.6115 70.2183 4.85193e-05 67.3977 4.86426e-05Z"/>
+        <path d="M86.438 4.8856e-05L81.914 4.90538e-05L80.5313 3.84412L87.8 3.84412L86.438 4.8856e-05Z"/>
+        <path d="M95.252 4.91142e-05L95.252 3.84412L99.6553 3.84412L99.6553 4.89218e-05L95.252 4.91142e-05Z"/>
+        <path d="M107.463 4.89231e-05L103.091 4.91142e-05L103.091 3.84412L109.725 3.84412L107.463 4.89231e-05Z"/>
+        <path d="M115.89 4.91142e-05L115.89 3.84412L120 3.84412L120 4.89346e-05L115.89 4.91142e-05Z"/>
+      </svg>
       <label for="gate-key">PASSWORD</label>
       <input id="gate-key" type="password" autocomplete="current-password" spellcheck="false" autofocus>
       <button type="submit">ENTER</button>
@@ -125,59 +116,49 @@ input, button, a.enter {
     </form>
   </div>
   <div id="menu">
-    <p class="mark">TOOLS</p>
-    <p id="place"></p>
-    <p id="current"></p>
-    <p id="note"></p>
-    <div class="row">
-      <button type="button" id="prev">PREV</button>
-      <button type="button" id="next">NEXT</button>
-    </div>
-    <a class="enter" id="open" href="yzy/">OPEN</a>
     <ul id="list"></ul>
+    <button type="button" id="load">LOAD</button>
   </div>
   <script>
   (function () {
     var HASH = "d83311e42a584c230a571e0cee22adc65a41f9b93c4b67d79f60d9fd3d017691";
     var TOOLS = [
-      { name: "YZY", note: "Y GRID", href: "yzy/" }
+      { name: "YZY", href: "yzy/" }
     ];
     var index = 0;
     var form = document.getElementById("gate-form");
     var input = document.getElementById("gate-key");
     var gateNote = document.getElementById("gate-note");
 
-    function pad(n) {
-      n = String(n);
-      return n.length < 2 ? "0" + n : n;
+    function openTool() {
+      window.location.href = TOOLS[index].href;
+    }
+
+    function mark() {
+      var buttons = document.querySelectorAll("#list button");
+      buttons.forEach(function (button, i) {
+        if (i === index) button.setAttribute("aria-current", "true");
+        else button.removeAttribute("aria-current");
+      });
     }
 
     function show() {
-      var tool = TOOLS[index];
-      document.getElementById("place").textContent = pad(index + 1) + " / " + pad(TOOLS.length);
-      document.getElementById("current").textContent = tool.name;
-      document.getElementById("note").textContent = tool.note;
-      document.getElementById("open").setAttribute("href", tool.href);
       var list = document.getElementById("list");
       list.innerHTML = "";
       TOOLS.forEach(function (item, i) {
         var li = document.createElement("li");
         var button = document.createElement("button");
         button.type = "button";
-        button.textContent = pad(i + 1) + "  " + item.name;
-        if (i === index) button.setAttribute("aria-current", "true");
+        button.textContent = item.name;
         button.addEventListener("click", function () {
           index = i;
-          show();
+          mark();
         });
+        button.addEventListener("dblclick", openTool);
         li.appendChild(button);
         list.appendChild(li);
       });
-    }
-
-    function step(dir) {
-      index = (index + dir + TOOLS.length) % TOOLS.length;
-      show();
+      mark();
     }
 
     form.addEventListener("submit", function (event) {
@@ -198,15 +179,10 @@ input, button, a.enter {
       });
     });
 
-    document.getElementById("prev").addEventListener("click", function () { step(-1); });
-    document.getElementById("next").addEventListener("click", function () { step(1); });
+    document.getElementById("load").addEventListener("click", openTool);
     document.addEventListener("keydown", function (event) {
       if (!document.documentElement.hasAttribute("data-open")) return;
-      if (event.key === "ArrowLeft") step(-1);
-      if (event.key === "ArrowRight") step(1);
-      if (event.key === "Enter" && event.target === document.body) {
-        window.location.href = TOOLS[index].href;
-      }
+      if (event.key === "Enter") openTool();
     });
 
     if (document.documentElement.getAttribute("data-open") === "1") show();

@@ -14,11 +14,6 @@
     document.documentElement.setAttribute("data-theme", theme);
     var meta = document.querySelector('meta[name="color-scheme"]');
     if (meta) meta.setAttribute("content", theme);
-    try {
-      if (sessionStorage.getItem("y-grid-open") === "1") {
-        document.documentElement.setAttribute("data-open", "1");
-      }
-    } catch (err) {}
   })();
   </script>
   <style>
@@ -703,6 +698,7 @@ h2.section {
 #export-poster-svg,
 #export-poster-eps,
 #load-json,
+#load-svg,
 #open-picked,
 #export-picked-svg,
 #export-picked-pdf,
@@ -973,95 +969,9 @@ input:focus-visible {
   }
 }
 
-html:not([data-open]) main.sheet {
-  display: none;
-}
-
-html[data-open] #gate {
-  display: none;
-}
-
-#gate {
-  min-height: 100vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 24px;
-  background: var(--paper);
-}
-
-#gate-form {
-  width: 196px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.gate-mark {
-  margin: 0 0 8px;
-  padding-bottom: 6px;
-  border-bottom: 1px solid var(--ink);
-}
-
-#gate-key {
-  width: 100%;
-  background: var(--paper);
-  color: var(--ink);
-  border: 1px solid var(--ink);
-  border-radius: 0;
-  padding: 3px 6px;
-  font: inherit;
-}
-
-#gate-form button {
-  background: transparent;
-  color: var(--ink);
-  border: 1px solid var(--ink);
-  border-radius: 0;
-  padding: 3px 6px;
-  text-align: left;
-}
-
-#gate-note {
-  min-height: 1.35em;
-  margin: 0;
-}
 </style>
 </head>
 <body>
-  <div id="gate">
-    <form id="gate-form" autocomplete="off">
-      <p class="gate-mark">Y GRID</p>
-      <label for="gate-key">PASSWORD</label>
-      <input id="gate-key" type="password" autocomplete="current-password" spellcheck="false" autofocus>
-      <button type="submit">ENTER</button>
-      <p id="gate-note" role="status"></p>
-    </form>
-  </div>
-  <script>
-  (function () {
-    var HASH = "d83311e42a584c230a571e0cee22adc65a41f9b93c4b67d79f60d9fd3d017691";
-    var form = document.getElementById("gate-form");
-    var input = document.getElementById("gate-key");
-    var note = document.getElementById("gate-note");
-    form.addEventListener("submit", function (event) {
-      event.preventDefault();
-      crypto.subtle.digest("SHA-256", new TextEncoder().encode(input.value)).then(function (buf) {
-        var hex = Array.prototype.map.call(new Uint8Array(buf), function (b) {
-          return ("0" + b.toString(16)).slice(-2);
-        }).join("");
-        if (hex !== HASH) {
-          note.textContent = "INCORRECT";
-          input.value = "";
-          input.focus();
-          return;
-        }
-        try { sessionStorage.setItem("y-grid-open", "1"); } catch (err) {}
-        document.documentElement.setAttribute("data-open", "1");
-      });
-    });
-  })();
-  </script>
   <main class="sheet">
     <header class="mast">
       <svg class="logo" width="156" height="5.2" viewBox="0 0 120 4" role="img" aria-label="Terrain">
@@ -1246,6 +1156,8 @@ html[data-open] #gate {
         <div id="grid-exports">
           <button type="button" id="load-json">LOAD JSON</button>
           <input id="load-json-file" type="file" accept=".json,application/json" hidden>
+          <button type="button" id="load-svg">LOAD SVG</button>
+          <input id="load-svg-file" type="file" accept=".svg,image/svg+xml" hidden>
           <p class="note" id="load-json-note" hidden></p>
           <button type="button" id="export-svg">EXPORT SVG</button>
           <button type="button" id="export-pdf">EXPORT PDF</button>
@@ -1756,6 +1668,14 @@ html[data-open] #gate {
     var file = event.target.files && event.target.files[0];
     event.target.value = "";
     if (file) loadShapeFile(file);
+  });
+  document.getElementById("load-svg").addEventListener("click", function () {
+    document.getElementById("load-svg-file").click();
+  });
+  document.getElementById("load-svg-file").addEventListener("change", function (event) {
+    var file = event.target.files && event.target.files[0];
+    event.target.value = "";
+    if (file) loadSvgFile(file);
   });
   document.getElementById("export-svg").addEventListener("click", exportViewSvg);
   document.getElementById("export-pdf").addEventListener("click", exportViewPdf);
@@ -4858,6 +4778,673 @@ html[data-open] #gate {
     applyShape(item.spec, item.pct);
   }
 
+  function svgTokens(d) {
+    var out = [];
+    var re = /[MmLlHhVvCcSsQqTtAaZz]|[-+]?(?:\d*\.\d+|\d+)(?:[eE][-+]?\d+)?/g;
+    var match;
+    while ((match = re.exec(d))) out.push(match[0]);
+    return out;
+  }
+
+  function svgPathPoints(d) {
+    var tokens = svgTokens(d || "");
+    var pts = [];
+    var i = 0;
+    var cmd = "";
+    var cx = 0;
+    var cy = 0;
+    var sx = 0;
+    var sy = 0;
+    function num() { return parseFloat(tokens[i++]); }
+    function add(x, y) { cx = x; cy = y; pts.push({ x: x, y: y }); }
+    function cubic(x1, y1, x2, y2, x, y) {
+      var x0 = cx;
+      var y0 = cy;
+      var step;
+      for (step = 1; step <= 6; step++) {
+        var t = step / 6;
+        var u = 1 - t;
+        add(
+          u * u * u * x0 + 3 * u * u * t * x1 + 3 * u * t * t * x2 + t * t * t * x,
+          u * u * u * y0 + 3 * u * u * t * y1 + 3 * u * t * t * y2 + t * t * t * y
+        );
+      }
+    }
+    while (i < tokens.length) {
+      if (/[A-Za-z]/.test(tokens[i])) cmd = tokens[i++];
+      if (cmd === "M" || cmd === "L") {
+        var x = num();
+        var y = num();
+        if (cmd === "M") { sx = x; sy = y; }
+        add(x, y);
+        if (cmd === "M") cmd = "L";
+      } else if (cmd === "C") {
+        var x1 = num();
+        var y1 = num();
+        var x2 = num();
+        var y2 = num();
+        var xe = num();
+        var ye = num();
+        cubic(x1, y1, x2, y2, xe, ye);
+      } else if (cmd === "Z" || cmd === "z") {
+        add(sx, sy);
+        cmd = "";
+      } else {
+        break;
+      }
+    }
+    return pts;
+  }
+
+  function hexColor(value) {
+    var text = String(value || "").trim().toLowerCase();
+    if (text === "red") return "#c43b3b";
+    if (text === "black") return "#000000";
+    if (text === "white") return "#ffffff";
+    if (/^#[0-9a-f]{3}$/.test(text)) return "#" + text.charAt(1) + text.charAt(1) + text.charAt(2) + text.charAt(2) + text.charAt(3) + text.charAt(3);
+    return text;
+  }
+
+  function readSvgDrawing(text) {
+    var doc = new DOMParser().parseFromString(text, "image/svg+xml");
+    if (doc.querySelector("parsererror")) return null;
+    var lines = [];
+    var circles = [];
+    var fills = [];
+    Array.prototype.forEach.call(doc.querySelectorAll("line"), function (node) {
+      lines.push({
+        x1: parseFloat(node.getAttribute("x1")),
+        y1: parseFloat(node.getAttribute("y1")),
+        x2: parseFloat(node.getAttribute("x2")),
+        y2: parseFloat(node.getAttribute("y2")),
+        stroke: hexColor(node.getAttribute("stroke")),
+        dash: !!node.getAttribute("stroke-dasharray")
+      });
+    });
+    Array.prototype.forEach.call(doc.querySelectorAll("circle"), function (node) {
+      circles.push({
+        cx: parseFloat(node.getAttribute("cx")),
+        cy: parseFloat(node.getAttribute("cy")),
+        r: parseFloat(node.getAttribute("r")),
+        stroke: hexColor(node.getAttribute("stroke")),
+        dash: !!node.getAttribute("stroke-dasharray")
+      });
+    });
+    Array.prototype.forEach.call(doc.querySelectorAll("path"), function (node) {
+      var fill = hexColor(node.getAttribute("fill"));
+      if (!fill || fill === "none" || fill === "transparent") return;
+      var pts = svgPathPoints(node.getAttribute("d"));
+      if (pts.length >= 4) fills.push(pts);
+    });
+    if (!fills.length) return null;
+    fills.sort(function (a, b) { return b.length - a.length; });
+    return { lines: lines, circles: circles, outline: fills[0] };
+  }
+
+  function shiftDrawing(drawing, dx, dy) {
+    drawing.outline.forEach(function (p) { p.x -= dx; p.y -= dy; });
+    drawing.lines.forEach(function (line) {
+      line.x1 -= dx; line.y1 -= dy; line.x2 -= dx; line.y2 -= dy;
+    });
+    drawing.circles.forEach(function (circle) { circle.cx -= dx; circle.cy -= dy; });
+  }
+
+  function hypot(x, y) { return Math.hypot(x, y); }
+
+  function lineOriginDist(line) {
+    var dx = line.x2 - line.x1;
+    var dy = line.y2 - line.y1;
+    var len = hypot(dx, dy) || 1;
+    return Math.abs(line.x1 * dy - line.y1 * dx) / len;
+  }
+
+  function segIntersect(a, b, c, d) {
+    var r = { x: b.x - a.x, y: b.y - a.y };
+    var s = { x: d.x - c.x, y: d.y - c.y };
+    var den = r.x * s.y - r.y * s.x;
+    if (Math.abs(den) < 1e-8) return null;
+    var q = { x: c.x - a.x, y: c.y - a.y };
+    var t = (q.x * s.y - q.y * s.x) / den;
+    var u = (q.x * r.y - q.y * r.x) / den;
+    if (t < 0.002 || t > 1 || u < 0 || u > 1) return null;
+    return { x: a.x + r.x * t, y: a.y + r.y * t, t: t };
+  }
+
+  function axisHit(tip, outline) {
+    var best = null;
+    var i;
+    for (i = 0; i < outline.length - 1; i++) {
+      var hit = segIntersect(tip, { x: tip.x * 0.08, y: tip.y * 0.08 }, outline[i], outline[i + 1]);
+      if (!hit) continue;
+      var dist = hypot(hit.x - tip.x, hit.y - tip.y);
+      if (!best || dist < best.dist) best = { dist: dist };
+    }
+    return best ? best.dist : 0;
+  }
+
+  function pointLineDist(p, a, b) {
+    var dx = b.x - a.x;
+    var dy = b.y - a.y;
+    var len = hypot(dx, dy) || 1;
+    var t = ((p.x - a.x) * dx + (p.y - a.y) * dy) / (len * len);
+    if (t < 0.2 || t > 0.8) return null;
+    return Math.abs((p.x - a.x) * dy - (p.y - a.y) * dx) / len;
+  }
+
+  function specModel(spec) {
+    var p = {
+      arm: spec.arm,
+      length: Math.max(1, spec.length),
+      stem: Math.max(1, spec.stem),
+      cutoff: Math.max(0, spec.cutoff || 0),
+      offset: Math.max(0, spec.offset || 0),
+      r1: Math.max(0, spec.r1 || 0),
+      r2: Math.max(0, spec.r2 || 0),
+      r3: Math.max(0, spec.r3 || 0),
+      r2On: !!spec.r2On,
+      r3On: !!spec.r3On
+    };
+    p.spread = spreadDeg(p.length, p.r1, p.arm);
+    var g = geometry(p);
+    return g && g.samples ? g : null;
+  }
+
+  function densify(pts, step) {
+    var out = [];
+    var i;
+    for (i = 0; i < pts.length - 1; i++) {
+      var dx = pts[i + 1].x - pts[i].x;
+      var dy = pts[i + 1].y - pts[i].y;
+      var len = Math.hypot(dx, dy);
+      if (!(len > 0.01)) continue;
+      var n = Math.max(1, Math.round(len / step));
+      var k;
+      for (k = 0; k < n; k++) {
+        var t = k / n;
+        out.push({ x: pts[i].x + dx * t, y: pts[i].y + dy * t });
+      }
+    }
+    if (pts.length) out.push(pts[pts.length - 1]);
+    return out;
+  }
+
+  function modelOutline(g) {
+    var pts = [];
+    var cx = 0;
+    var cy = 0;
+    (g.shape || []).forEach(function (cmd) {
+      if (cmd.t === "M" || cmd.t === "L") {
+        cx = cmd.x;
+        cy = cmd.y;
+        pts.push({ x: cx, y: cy });
+        return;
+      }
+      if (cmd.t !== "C") return;
+      var x0 = cx;
+      var y0 = cy;
+      var step;
+      for (step = 1; step <= 6; step++) {
+        var t = step / 6;
+        var u = 1 - t;
+        cx = u * u * u * x0 + 3 * u * u * t * cmd.x1 + 3 * u * t * t * cmd.x2 + t * t * t * cmd.x;
+        cy = u * u * u * y0 + 3 * u * u * t * cmd.y1 + 3 * u * t * t * cmd.y2 + t * t * t * cmd.y;
+        pts.push({ x: cx, y: cy });
+      }
+    });
+    return pts;
+  }
+
+  function drawingGap(spec, outline, coarse) {
+    var g = specModel(spec);
+    if (!g) return Infinity;
+    var model = densify(modelOutline(g), coarse ? 28 : 14);
+    var target = densify(outline, coarse ? 28 : 14);
+    function near(from, to) {
+      var stepA = Math.max(1, Math.floor(from.length / (coarse ? 28 : 80)));
+      var sum = 0;
+      var n = 0;
+      var i;
+      var j;
+      for (i = 0; i < from.length; i += stepA) {
+        var best = Infinity;
+        for (j = 0; j < to.length; j++) {
+          var dx = from[i].x - to[j].x;
+          var dy = from[i].y - to[j].y;
+          var d = dx * dx + dy * dy;
+          if (d < best) best = d;
+        }
+        sum += Math.sqrt(best);
+        n++;
+      }
+      return n ? sum / n : Infinity;
+    }
+    return near(target, model) + near(model, target);
+  }
+
+  function snapReadSpec(spec) {
+    spec.arm = Math.round(clamp(spec.arm, 14, 68) * 10) / 10;
+    spec.length = Math.round(clamp(spec.length, 80, 900));
+    spec.stem = Math.round(clamp(spec.stem, 60, 1600));
+    spec.cutoff = Math.round(Math.max(0, spec.cutoff || 0));
+    spec.offset = Math.round(Math.max(0, spec.offset || 0));
+    spec.r1 = Math.round(Math.max(0, spec.r1 || 0) * 10) / 10;
+    spec.r2 = Math.round(Math.max(0, spec.r2 || 0) * 10) / 10;
+    spec.r3 = Math.round(Math.max(0, spec.r3 || 0) * 10) / 10;
+    spec.r2On = !!spec.r2On;
+    spec.r3On = !!spec.r3On;
+    return spec;
+  }
+
+  function refineReadSpec(spec, outline, locked) {
+    var best = snapReadSpec({
+      arm: spec.arm, length: spec.length, stem: spec.stem, cutoff: spec.cutoff,
+      offset: spec.offset, r1: spec.r1, r2: spec.r2, r3: spec.r3, r2On: spec.r2On, r3On: spec.r3On
+    });
+    var bestScore = drawingGap(best, outline);
+    var toggles = [
+      [false, false],
+      [true, false],
+      [false, true],
+      [true, true]
+    ];
+    toggles.forEach(function (pair) {
+      var next = {
+        arm: best.arm, length: best.length, stem: best.stem, cutoff: best.cutoff,
+        offset: best.offset, r1: best.r1, r2: best.r2 || best.r1, r3: best.r3 || best.r1,
+        r2On: pair[0], r3On: pair[1]
+      };
+      var score = drawingGap(next, outline);
+      if (score < bestScore) { best = next; bestScore = score; }
+    });
+    var guided = locked && locked.arm;
+    var spans = guided
+      ? { arm: 3, length: 24, stem: 24, cutoff: 20, offset: 16, r1: 8, r2: 12, r3: 12 }
+      : { arm: 8, length: 80, stem: 90, cutoff: 50, offset: 28, r1: 22, r2: 24, r3: 24 };
+    var pass;
+    var passes = guided ? 3 : 5;
+    var keys = ["arm", "length", "stem", "cutoff", "offset", "r1", "r2", "r3"];
+    for (pass = 0; pass < passes; pass++) {
+      if (!guided) {
+        [-50, -25, 25, 50].forEach(function (delta) {
+          var next = {
+            arm: best.arm, length: best.length + delta, stem: best.stem + delta, cutoff: Math.max(0, best.cutoff + delta),
+            offset: best.offset, r1: best.r1, r2: best.r2, r3: best.r3, r2On: best.r2On, r3On: best.r3On
+          };
+          snapReadSpec(next);
+          var score = drawingGap(next, outline);
+          if (score + 0.15 < bestScore) { best = next; bestScore = score; }
+        });
+      }
+      keys.forEach(function (key) {
+        if (locked && locked[key]) return;
+        if ((key === "r2" && !best.r2On) || (key === "r3" && !best.r3On)) return;
+        [-1, -0.5, 0.5, 1].forEach(function (dir) {
+          var next = {
+            arm: best.arm, length: best.length, stem: best.stem, cutoff: best.cutoff,
+            offset: best.offset, r1: best.r1, r2: best.r2, r3: best.r3, r2On: best.r2On, r3On: best.r3On
+          };
+          next[key] = best[key] + dir * spans[key] / Math.pow(2, pass);
+          snapReadSpec(next);
+          var score = drawingGap(next, outline);
+          if (score + 0.15 < bestScore) { best = next; bestScore = score; }
+        });
+      });
+    }
+    best.gap = bestScore;
+    return best;
+  }
+
+  function copyReadSpec(spec) {
+    return {
+      arm: spec.arm, length: spec.length, stem: spec.stem, cutoff: spec.cutoff,
+      offset: spec.offset, r1: spec.r1, r2: spec.r2, r3: spec.r3, r2On: spec.r2On, r3On: spec.r3On
+    };
+  }
+
+  function rayReach(outline, dir) {
+    var far = { x: dir.x * 8000, y: dir.y * 8000 };
+    var best = 0;
+    var i;
+    for (i = 0; i < outline.length - 1; i++) {
+      var hit = segIntersect({ x: 0, y: 0 }, far, outline[i], outline[i + 1]);
+      if (!hit) continue;
+      var dist = hypot(hit.x, hit.y);
+      if (dist > best) best = dist;
+    }
+    return best;
+  }
+
+  function halfWidth(outline, dir, station) {
+    var point = { x: dir.x * station, y: dir.y * station };
+    var perp = { x: -dir.y, y: dir.x };
+    var wideA = { x: point.x - perp.x * 4000, y: point.y - perp.y * 4000 };
+    var wideB = { x: point.x + perp.x * 4000, y: point.y + perp.y * 4000 };
+    var dists = [];
+    var i;
+    for (i = 0; i < outline.length - 1; i++) {
+      var hit = segIntersect(wideA, wideB, outline[i], outline[i + 1]);
+      if (hit) dists.push(hypot(hit.x - point.x, hit.y - point.y));
+    }
+    dists.sort(function (p, q) { return p - q; });
+    if (dists.length < 2) return 0;
+    return (dists[0] + dists[1]) / 2;
+  }
+
+  function limbProfile(outline, dir) {
+    var reach = rayReach(outline, dir);
+    if (!(reach > 30)) return null;
+    var s1 = reach * 0.36;
+    var s2 = reach * 0.66;
+    var w1 = halfWidth(outline, dir, s1);
+    var w2 = halfWidth(outline, dir, s2);
+    if (!(w1 > 1 && w2 > 0)) return null;
+    var tanS = (w1 - w2) / Math.max(1, s2 - s1);
+    if (!(tanS > 0.004)) tanS = 0.004;
+    var spread = Math.atan(tanS);
+    return {
+      reach: reach,
+      tanS: tanS,
+      k: w1 * Math.cos(spread) + s1 * Math.sin(spread)
+    };
+  }
+
+  function filletGuess(outline) {
+    var pts = densify(outline, 8);
+    var tips = [];
+    var joints = [];
+    var reach = 0;
+    var i;
+    for (i = 0; i < pts.length; i++) reach = Math.max(reach, hypot(pts[i].x, pts[i].y));
+    for (i = 2; i < pts.length - 2; i++) {
+      var a = pts[i - 2];
+      var b = pts[i];
+      var c = pts[i + 2];
+      var ab = hypot(b.x - a.x, b.y - a.y);
+      var bc = hypot(c.x - b.x, c.y - b.y);
+      var ac = hypot(c.x - a.x, c.y - a.y);
+      var area = Math.abs((b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x));
+      if (ab < 2 || bc < 2 || area < 1) continue;
+      var radius = ab * bc * ac / (4 * area);
+      if (!(radius > 4 && radius < 180)) continue;
+      var dist = hypot(b.x, b.y);
+      if (dist > reach * 0.72) tips.push(radius);
+      else if (dist < reach * 0.45) joints.push(radius);
+    }
+    function med(list) {
+      if (!list.length) return 0;
+      list.sort(function (p, q) { return p - q; });
+      return list[Math.floor(list.length / 2)];
+    }
+    return { r2: med(joints), r3: med(tips) };
+  }
+
+  function fitOutline(spec, outline) {
+    var fillets = filletGuess(outline);
+    var best = null;
+    var bestScore = Infinity;
+    var byOffset = {};
+    var armTry;
+    for (armTry = spec.arm - 4; armTry <= spec.arm + 4.01; armTry += 0.5) {
+      var rad = armTry * Math.PI / 180;
+      var right = { x: Math.cos(rad), y: Math.sin(rad) };
+      var left = { x: -right.x, y: right.y };
+      var reads = [limbProfile(outline, right), limbProfile(outline, left)];
+      var reach = 0;
+      var tanS = 0;
+      var kSum = 0;
+      var n = 0;
+      reads.forEach(function (read) {
+        if (!read) return;
+        reach += read.reach;
+        tanS += read.tanS;
+        kSum += read.k;
+        n++;
+      });
+      var stemRead = limbProfile(outline, { x: 0, y: -1 });
+      if (!n || !stemRead) continue;
+      reach /= n;
+      tanS /= n;
+      kSum /= n;
+      var spread = Math.atan(tanS);
+      var sinS = Math.sin(spread);
+      var off;
+      for (off = 0; off <= 48; off += 1) {
+        var r1 = kSum - off;
+        if (!(r1 > 1)) continue;
+        var length = r1 / sinS;
+        var cutoff = length - reach + off;
+        var stem = stemRead.reach + cutoff - off;
+        if (!(cutoff > -4 && cutoff < length * 0.85 && stem > 40 && length > 40 && length < 1400)) continue;
+        var next = {
+          arm: armTry, length: length, stem: stem, cutoff: Math.max(0, cutoff),
+          offset: off, r1: r1, r2: fillets.r2 || r1, r3: fillets.r3 || r1,
+          r2On: fillets.r2 > 3, r3On: fillets.r3 > 3
+        };
+        snapReadSpec(next);
+        var score = drawingGap(next, outline, true);
+        var slot = byOffset[off];
+        if (!slot || score < slot.score) byOffset[off] = { spec: copyReadSpec(next), score: score };
+        if (score < bestScore) { best = next; bestScore = score; }
+      }
+    }
+    if (!best) best = snapReadSpec(copyReadSpec(spec));
+    var ranked = Object.keys(byOffset).map(function (key) { return byOffset[key]; });
+    ranked.sort(function (a, b) { return a.score - b.score; });
+    var fineBest = null;
+    var fineScore = Infinity;
+    ranked.forEach(function (slot) {
+      if (fineScore < 0.02) return;
+      [0, 60, 90, 120].forEach(function (r2) {
+        if (fineScore < 0.02) return;
+        [0, 8, 12, 15, 24, 36].forEach(function (r3) {
+          var next = copyReadSpec(slot.spec);
+          next.r2 = r2 || next.r1;
+          next.r2On = r2 > 0;
+          next.r3 = r3 || next.r1;
+          next.r3On = r3 > 0;
+          var score = drawingGap(next, outline);
+          if (score < fineScore) { fineBest = next; fineScore = score; }
+        });
+      });
+    });
+    if (fineBest) {
+      [-0.2, -0.1, 0.1, 0.2].forEach(function (delta) {
+        var next = copyReadSpec(fineBest);
+        next.arm += delta;
+        snapReadSpec(next);
+        var score = drawingGap(next, outline);
+        if (score < fineScore) { fineBest = next; fineScore = score; }
+      });
+    }
+    return refineReadSpec(fineBest || best, outline, null);
+  }
+
+  function shapeStamp(spec) {
+    return ["arm", "length", "stem", "cutoff", "offset", "r1", "r2", "r3"].map(function (key) {
+      return key + ":" + spec[key];
+    }).concat(["r2On:" + (spec.r2On ? 1 : 0), "r3On:" + (spec.r3On ? 1 : 0)]).join(" ");
+  }
+
+  function stampedSpec(text) {
+    var doc = new DOMParser().parseFromString(text, "image/svg+xml");
+    var raw = doc.documentElement && doc.documentElement.getAttribute("data-shape");
+    if (!raw) return null;
+    var spec = {};
+    raw.split(/\s+/).forEach(function (bit) {
+      var pair = bit.split(":");
+      if (pair[0] === "r2On" || pair[0] === "r3On") spec[pair[0]] = pair[1] === "1";
+      else {
+        var value = parseFloat(pair[1]);
+        if (Number.isFinite(value)) spec[pair[0]] = value;
+      }
+    });
+    if (!Number.isFinite(spec.arm) || !Number.isFinite(spec.length) || !Number.isFinite(spec.stem)) return null;
+    spec.gap = 0;
+    return spec;
+  }
+
+  function specFromSvg(text) {
+    var stamped = stampedSpec(text);
+    if (stamped) return stamped;
+    var drawing = readSvgDrawing(text);
+    if (!drawing) return null;
+    var joint = null;
+    drawing.circles.forEach(function (circle) {
+      if (circle.stroke === "#c43b3b" && (!joint || circle.r > joint.r)) joint = circle;
+    });
+    if (joint) shiftDrawing(drawing, joint.cx, joint.cy);
+    var axes = drawing.lines.filter(function (line) {
+      return line.dash && (line.stroke === "#5c5c5c" || line.stroke === "#8a8a8a") && lineOriginDist(line) < 8;
+    });
+    var stemLine = null;
+    var arms = [];
+    axes.forEach(function (line) {
+      var dx = Math.abs(line.x2 - line.x1);
+      var dy = Math.abs(line.y2 - line.y1);
+      if (dx < dy * 0.18) stemLine = line;
+      else arms.push(line);
+    });
+    var spec = { arm: 30, length: 440, stem: 440, cutoff: 0, offset: 0, r1: 34.5, r2: 34.5, r3: 34.5, r2On: false, r3On: false };
+    if (joint) spec.r1 = joint.r;
+    if (arms.length) {
+      var angles = [];
+      var lengths = [];
+      arms.forEach(function (line) {
+        var far = line.y1 >= line.y2 ? { x: line.x1, y: line.y1 } : { x: line.x2, y: line.y2 };
+        var angle = Math.atan2(far.y, far.x) * 180 / Math.PI;
+        if (angle > 90) angle = 180 - angle;
+        if (angle < 0) angle = -angle;
+        angles.push(angle);
+        lengths.push(hypot(far.x, far.y) / RAY_OUT);
+      });
+      spec.arm = angles.reduce(function (sum, n) { return sum + n; }, 0) / angles.length;
+      spec.length = lengths.reduce(function (sum, n) { return sum + n; }, 0) / lengths.length;
+    } else {
+      var right = drawing.outline[0];
+      var bottom = drawing.outline[0];
+      drawing.outline.forEach(function (p) {
+        if (p.x > right.x) right = p;
+        if (p.y < bottom.y) bottom = p;
+      });
+      spec.arm = Math.atan2(Math.max(right.y, 1), Math.max(right.x, 1)) * 180 / Math.PI;
+      spec.length = hypot(right.x, right.y);
+      spec.stem = Math.max(60, -bottom.y);
+    }
+    if (stemLine) {
+      var low = stemLine.y1 < stemLine.y2 ? { x: stemLine.x1, y: stemLine.y1 } : { x: stemLine.x2, y: stemLine.y2 };
+      spec.stem = Math.abs(low.y) / 1.03;
+    }
+    if (!arms.length && !joint) {
+      var fromOutline = fitOutline(spec, drawing.outline);
+      if (!(fromOutline.gap < Math.max(fromOutline.length, fromOutline.stem) * 0.06)) return null;
+      return fromOutline;
+    }
+    var armRad = spec.arm * Math.PI / 180;
+    var rightDir = { x: Math.cos(armRad), y: Math.sin(armRad) };
+    var leftDir = { x: -rightDir.x, y: rightDir.y };
+    var stemDir = { x: 0, y: -1 };
+    var spread = Math.asin(clamp(spec.r1 / Math.max(spec.length, 1), 0, 0.999));
+    var offsets = [];
+    [rightDir, leftDir, stemDir].forEach(function (dir) {
+      var reach = dir.y < 0 ? spec.stem : spec.length;
+      var station = reach * 0.42;
+      var point = { x: dir.x * station, y: dir.y * station };
+      var perp = { x: -dir.y, y: dir.x };
+      var wideA = { x: point.x - perp.x * 4000, y: point.y - perp.y * 4000 };
+      var wideB = { x: point.x + perp.x * 4000, y: point.y + perp.y * 4000 };
+      var dists = [];
+      var index;
+      for (index = 0; index < drawing.outline.length - 1; index++) {
+        var hit = segIntersect(wideA, wideB, drawing.outline[index], drawing.outline[index + 1]);
+        if (hit) dists.push(hypot(hit.x - point.x, hit.y - point.y));
+      }
+      dists.sort(function (p, q) { return p - q; });
+      if (dists.length >= 2) {
+        var half = (dists[0] + dists[1]) / 2;
+        offsets.push((half - (reach - station) * Math.tan(spread)) * Math.cos(spread));
+      }
+    });
+    if (offsets.length) {
+      offsets.sort(function (p, q) { return p - q; });
+      spec.offset = Math.max(0, offsets[Math.floor(offsets.length / 2)]);
+    }
+    var cuts = [];
+    [rightDir, leftDir, stemDir].forEach(function (dir) {
+      var reach = dir.y < 0 ? spec.stem : spec.length;
+      var tip = { x: dir.x * reach, y: dir.y * reach };
+      var hit = axisHit(tip, drawing.outline);
+      if (hit > 0.8 && hit < reach * 0.72) cuts.push(hit + spec.offset);
+    });
+    if (cuts.length) {
+      cuts.sort(function (p, q) { return p - q; });
+      spec.cutoff = cuts[Math.floor(cuts.length / 2)];
+    }
+    var radii = drawing.circles.filter(function (circle) {
+      return circle.stroke !== "#c43b3b" && circle.dash && circle.r > 1;
+    });
+    var nearR = [];
+    radii.forEach(function (circle) {
+      var dist = hypot(circle.cx, circle.cy);
+      if (dist <= Math.min(spec.length, spec.stem) * 0.62) nearR.push(circle.r);
+    });
+    function votedRadius(list) {
+      var bins = {};
+      list.forEach(function (r) {
+        var key = String(Math.round(r));
+        if (!bins[key]) bins[key] = { sum: 0, n: 0 };
+        bins[key].sum += r;
+        bins[key].n += 1;
+      });
+      var best = 0;
+      Object.keys(bins).forEach(function (key) {
+        var bin = bins[key];
+        var mean = bin.sum / bin.n;
+        if (bin.n >= 3 && mean > best) best = mean;
+      });
+      return best;
+    }
+    spec.r2 = votedRadius(nearR);
+    spec.r2On = spec.r2 > 1;
+    if (!spec.r2On) spec.r2 = spec.r1;
+    var r3Pick = 0;
+    var r3On = false;
+    var r3Score = Infinity;
+    var trial;
+    for (trial = 0; trial <= 48; trial++) {
+      spec.r3 = trial || spec.r1;
+      spec.r3On = trial > 0;
+      var trialScore = drawingGap(spec, drawing.outline);
+      if (trialScore + 0.01 < r3Score || (Math.abs(trialScore - r3Score) <= 0.01 && trial > r3Pick)) {
+        r3Score = Math.min(r3Score, trialScore);
+        r3Pick = trial;
+        r3On = trial > 0;
+      }
+    }
+    spec.r3 = r3Pick || spec.r1;
+    spec.r3On = r3On;
+    var fitted = refineReadSpec(spec, drawing.outline, { arm: !!arms.length, length: !!arms.length, stem: !!stemLine, r1: !!joint });
+    if (!(fitted.gap < Math.max(spec.length, spec.stem) * 0.08)) return null;
+    return fitted;
+  }
+
+  function loadSvgFile(file) {
+    var note = document.getElementById("load-json-note");
+    var reader = new FileReader();
+    reader.onload = function () {
+      var spec = specFromSvg(String(reader.result || ""));
+      if (!spec) {
+        if (note) {
+          note.hidden = false;
+          note.textContent = "This SVG has no Y construction to read.";
+        }
+        return;
+      }
+      if (note) note.hidden = true;
+      applyShape(spec, null);
+    };
+    reader.readAsText(file);
+  }
+
   function loadShapeFile(file) {
     var note = document.getElementById("load-json-note");
     var reader = new FileReader();
@@ -5019,6 +5606,7 @@ html[data-open] #gate {
     var g = geometry(params()) || lastGood;
     var box = frameOf(g);
     var doc = blankSvg(box.w, box.h);
+    doc.setAttribute("data-shape", shapeStamp(params()));
     doc.setAttribute("viewBox", box.view);
     var parts = box.view.split(" ");
     var ground = svgEl("rect");
