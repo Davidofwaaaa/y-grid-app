@@ -191,8 +191,8 @@ button, a {
   body,
   .wordmark,
   .nav a {
-    font-size: min(calc(10 / 393 * 100vw), calc(10 / 852 * 100dvh));
-    line-height: min(calc(15 / 393 * 100vw), calc(15 / 852 * 100dvh));
+    font-size: min(calc(14 / 393 * 100vw), calc(14 / 852 * 100dvh));
+    line-height: min(calc(21 / 393 * 100vw), calc(21 / 852 * 100dvh));
   }
 
   .wordmark { left: calc(12 / 393 * 100%); top: calc(14 / 852 * 100%); }
