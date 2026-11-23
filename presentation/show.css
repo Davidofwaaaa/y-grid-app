@@ -7,11 +7,11 @@
 }
 * { box-sizing: border-box; }
 html, body { margin: 0; height: 100%; overflow: hidden; background: #fff; color: #000; }
-body { font-family: "IBM Plex Mono", ui-monospace, monospace; font-weight: 500; font-size: 10px; line-height: 15px; }
+body { font-family: "IBM Plex Mono", ui-monospace, monospace; font-weight: 500; font-size: 7.5px; line-height: 11.25px; }
 button, a { font: inherit; color: inherit; }
 .viewport { position: fixed; inset: 0; overflow: hidden; background: #fff; }
 .board { position: absolute; left: 0; top: 0; width: 1440px; height: 900px; overflow: hidden; background: #fff; zoom: var(--fit, 1); }
-.wordmark, .nav { font-size: calc(10px * var(--fit, 1)); line-height: calc(15px * var(--fit, 1)); }
+.wordmark, .nav { font-size: calc(7.5px * var(--fit, 1)); line-height: calc(11.25px * var(--fit, 1)); }
 .wordmark { position: absolute; left: calc(25px * var(--fit, 1)); top: calc(24px * var(--fit, 1)); z-index: 3; margin: 0; text-decoration: none; white-space: nowrap; }
 .terrain { position: absolute; right: calc(25px * var(--fit, 1)); top: calc(28px * var(--fit, 1)); z-index: 3; display: block; width: calc(169px * var(--fit, 1)); height: calc(4px * var(--fit, 1)); }
 .hairline { position: absolute; left: calc(25px * var(--fit, 1)); right: calc(25px * var(--fit, 1)); top: calc(47px * var(--fit, 1)); z-index: 3; border-top: calc(1px * var(--fit, 1)) solid #000; }
