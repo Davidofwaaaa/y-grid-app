@@ -47,9 +47,8 @@
       slides: [
         {
           desk: [
-            img("assets/model.jpg", 260, 60, 1155, 788, MODEL),
-            img("assets/y-mark.svg", 440, 449.76, 38.465, 33.992),
-            img("assets/y-mark.svg", 1222.78, 449.76, 38.465, 33.992)
+            img("assets/model.jpg", 259, 154, 921, 628.353, MODEL),
+            img("assets/y-pair.svg", 360.27, 433.09, 717.662, 70.171)
           ],
           mob: [
             img("assets/model.jpg", 15, 277, 368, 251, MODEL),
@@ -68,7 +67,7 @@
       label: "Hangtags",
       slides: [
         {
-          desk: tags(470, 200.98, 1),
+          desk: tags(353, 200.98, 1),
           mob: [
             img("assets/model.jpg", 12, 276, 369, 252, MODEL),
             img("assets/y-mark.svg", 66, 401.79, 12.255, 10.83),
@@ -76,7 +75,7 @@
           ]
         },
         {
-          desk: [img("assets/hangtag-photo.png", 259, 24, 1156, 876)],
+          desk: [img("assets/hangtag-photo.png", 142, 24, 1156, 876)],
           mob: [img("assets/hangtag-photo.png", 12, 248, 369, 280)]
         }
       ]
@@ -86,11 +85,11 @@
       label: "Neck Label",
       slides: [
         {
-          desk: necks(neckA, 478, [174, 347, 520], 626, [230, 230, 231]),
+          desk: necks(neckA, 407, [174, 347, 520], 626, [230, 230, 231]),
           mob: necks(neckA, 15, [261, 362, 462], 363, [134, 133, 134])
         },
         {
-          desk: necks(neckB, 462, [162, 336, 509], 626, [231, 230, 230]),
+          desk: necks(neckB, 407, [162, 336, 509], 626, [231, 230, 230]),
           mob: necks(neckB, 15, [261, 362, 462], 363, [134, 133, 133])
         }
       ]
@@ -189,7 +188,8 @@
   var board = document.getElementById("frame");
   var menu = document.getElementById("nav");
   var stage = document.getElementById("slide");
-  var count = document.getElementById("count");
+  var count = null;
+  var dots = document.getElementById("dots");
   var slide = 0;
   var layout = "desktop";
 
@@ -285,7 +285,15 @@
       if (on) links[i].setAttribute("aria-current", "page");
       else links[i].removeAttribute("aria-current");
     }
-    count.textContent = (slide + 1) + "/" + page.slides.length;
+    dots.innerHTML = "";
+    for (var d = 0; d < 4; d++) {
+      var dot = document.createElement("button");
+      dot.type = "button";
+      dot.className = d === Math.min(slide, 3) ? "is-on" : "";
+      dot.setAttribute("aria-label", "Slide " + (d + 1));
+      dot.dataset.slide = String(d);
+      dots.appendChild(dot);
+    }
     document.title = (page.label || "YZY") + " — YZY - GEMINI SYSTEM";
   }
 
@@ -311,8 +319,14 @@
     go(page, next, false);
   }
 
-  document.getElementById("prev").addEventListener("click", function () { step(-1); });
-  document.getElementById("next").addEventListener("click", function () { step(1); });
+  dots.addEventListener("click", function (event) {
+    var button = event.target.closest("button");
+    if (!button) return;
+    var page = current();
+    var index = parseInt(button.dataset.slide, 10);
+    if (index > page.slides.length - 1) index = page.slides.length - 1;
+    go(page, index, false);
+  });
 
   window.addEventListener("hashchange", function () {
     var route = pageFromHash();

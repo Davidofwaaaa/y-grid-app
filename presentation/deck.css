@@ -151,32 +151,31 @@ button, a {
   max-width: none;
 }
 
-.controls {
+.dots {
   position: absolute;
-  left: 259px;
-  top: 867px;
+  left: 50%;
+  top: 864px;
   z-index: 4;
-  width: 240px;
-  height: 13px;
+  display: flex;
+  gap: 3.6px;
+  width: 34.8px;
+  height: 6px;
   margin: 0;
-  font-size: 10px;
-  line-height: 13px;
+  padding: 0;
+  transform: translateX(-50%);
 }
 
-.controls button {
-  position: absolute;
-  top: 0;
+.dots button {
+  width: 6px;
+  height: 6px;
   padding: 0;
   border: 0;
-  background: none;
-  text-decoration: underline;
-  text-underline-offset: 1px;
+  border-radius: 50%;
+  background: #d9d9d9;
   cursor: pointer;
 }
 
-.controls .prev { left: 0; }
-.controls .next { left: 36px; }
-.controls .count { position: absolute; left: 201px; top: 0; }
+.dots button.is-on { background: #000; }
 
 @media (max-width: 760px) {
   .frame { width: 393px; height: 852px; }
@@ -208,6 +207,5 @@ button, a {
   .nav a:nth-child(8) { top: 198px; }
   .nav a:nth-child(9) { top: 219px; }
 
-  .controls { left: 12px; top: 820px; background: #fff; }
-  .controls .count { left: 120px; }
+  .dots { top: 786px; }
 }
