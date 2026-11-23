@@ -1,8 +1,7 @@
 <!DOCTYPE html>
 <!--
   Figma: https://www.figma.com/design/UX71vFIB6b4Lj3W3nyZB67/YZY?node-id=176-3
-  Page: ► Presentation
-  Menu and frames follow the current WIP. Slideshow controls stay static.
+  Desktop frames are 1440×900. Each section has a matching iPhone 14 & 15 Pro frame.
 -->
 <html lang="en">
 <head>
@@ -13,19 +12,20 @@
   <link rel="stylesheet" href="presentation.css">
 </head>
 <body>
-  <div class="sheet" id="sheet">
-    <header class="top">
-      <img class="logo" src="assets/whte.svg" alt="YZY" width="169" height="4">
+  <div class="viewport">
+    <div class="board" id="board">
       <p class="system">YZY - GEMINI SYSTEM</p>
-      <p class="credit">DESIGNED IN TERRAIN BY - DAVID RUDNICK - DAVID ADEYEMO - ARLE VAN WIN - OTIS VERHOEVE</p>
-    </header>
-    <nav class="menu" id="menu" aria-label="Pages"></nav>
-    <div class="stage" id="stage"></div>
-    <p class="pager" id="pager">
-      <span class="prev">Prev</span>
-      <span class="next">next</span>
-      <span class="count">1/4</span>
-    </p>
+      <img class="mark mark-desk" src="assets/whte.svg" alt="TERRAIN" width="169" height="4">
+      <img class="mark mark-mob" src="assets/terrain-mobile.svg" alt="TERRAIN" width="121" height="3">
+      <div class="rule"></div>
+      <nav class="menu" id="menu" aria-label="Pages"></nav>
+      <div class="stage" id="stage"></div>
+      <p class="pager" id="pager">
+        <button type="button" class="prev" id="prev">Prev</button>
+        <button type="button" class="next" id="next">next</button>
+        <span class="count" id="count">1/1</span>
+      </p>
+    </div>
   </div>
   <script src="presentation.js"></script>
 </body>
