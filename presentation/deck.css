@@ -38,15 +38,14 @@ button, a {
 .viewport {
   position: fixed;
   inset: 0;
-  overflow: hidden;
+  overflow: auto;
   background: #fff;
 }
 
 .frame {
-  position: absolute;
-  inset: 0;
+  position: relative;
   width: 100%;
-  height: 100%;
+  aspect-ratio: 1440 / 900;
   background: #fff;
 }
 
@@ -180,7 +179,8 @@ button, a {
     position: relative;
     inset: auto;
     width: 100%;
-    height: calc(100vw * 852 / 393);
+    aspect-ratio: 393 / 852;
+    height: auto;
   }
 
   body,
