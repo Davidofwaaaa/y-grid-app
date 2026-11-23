@@ -154,7 +154,7 @@ button, a {
   display: flex;
   gap: calc(3.6 / 34.8 * 100%);
   width: calc(34.8 / 1440 * 100%);
-  height: calc(6 / 900 * 100%);
+  aspect-ratio: 34.8 / 6;
   margin: 0;
   padding: 0;
   transform: translateX(-50%);
@@ -220,6 +220,6 @@ button, a {
   .dots {
     top: calc(786 / 852 * 100%);
     width: calc(34.8 / 393 * 100%);
-    height: calc(6 / 852 * 100%);
+    aspect-ratio: 34.8 / 6;
   }
 }

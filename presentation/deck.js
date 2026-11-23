@@ -237,7 +237,7 @@
     box.style.left = (layer.x / size.w * 100) + "%";
     box.style.top = (layer.y / size.h * 100) + "%";
     box.style.width = (layer.w / size.w * 100) + "%";
-    box.style.height = (layer.h / size.h * 100) + "%";
+    box.style.aspectRatio = layer.w + " / " + layer.h;
     var image = document.createElement("img");
     image.src = layer.src;
     image.alt = "";
