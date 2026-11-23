@@ -215,6 +215,9 @@
     var changed = next !== layout;
     layout = next;
     document.body.dataset.layout = layout;
+    var size = designSize();
+    var scale = Math.min(window.innerWidth / size.w, window.innerHeight / size.h);
+    document.documentElement.style.setProperty("--fit", String(scale));
     if (changed) render();
   }
 
@@ -231,13 +234,12 @@
   }
 
   function piece(layer) {
-    var size = designSize();
     var box = document.createElement("div");
     box.className = "crop";
-    box.style.left = (layer.x / size.w * 100) + "%";
-    box.style.top = (layer.y / size.h * 100) + "%";
-    box.style.width = (layer.w / size.w * 100) + "%";
-    box.style.aspectRatio = layer.w + " / " + layer.h;
+    box.style.left = layer.x + "px";
+    box.style.top = layer.y + "px";
+    box.style.width = layer.w + "px";
+    box.style.height = layer.h + "px";
     var image = document.createElement("img");
     image.src = layer.src;
     image.alt = "";

@@ -31,8 +31,8 @@ html, body {
 body {
   font-family: "IBM Plex Mono", ui-monospace, monospace;
   font-weight: 400;
-  font-size: min(calc(10 / 1440 * 100vw), calc(10 / 900 * 100dvh));
-  line-height: min(calc(15 / 1440 * 100vw), calc(15 / 900 * 100dvh));
+  font-size: 10px;
+  line-height: 15px;
 }
 
 button, a {
@@ -50,19 +50,24 @@ button, a {
 
 .frame {
   position: absolute;
-  inset: 0;
+  left: 50%;
+  top: 50%;
+  width: 1440px;
+  height: 900px;
   overflow: hidden;
   background: #fff;
+  transform: translate(-50%, -50%) scale(var(--fit, 1));
+  transform-origin: center center;
 }
 
 .wordmark {
   position: absolute;
-  left: calc(25 / 1440 * 100%);
-  top: calc(24 / 900 * 100%);
+  left: 25px;
+  top: 24px;
   margin: 0;
   font-weight: 500;
-  font-size: min(calc(10 / 1440 * 100vw), calc(10 / 900 * 100dvh));
-  line-height: min(calc(15 / 1440 * 100vw), calc(15 / 900 * 100dvh));
+  font-size: 10px;
+  line-height: 15px;
   white-space: nowrap;
   text-decoration: none;
   z-index: 3;
@@ -75,19 +80,19 @@ button, a {
 }
 
 .terrain-desk {
-  left: calc(1246 / 1440 * 100%);
-  top: calc(28 / 900 * 100%);
-  width: calc(169 / 1440 * 100%);
-  height: calc(4 / 900 * 100%);
+  left: 1246px;
+  top: 28px;
+  width: 169px;
+  height: 4px;
 }
 
 .terrain-mob { display: none; }
 
 .hairline {
   position: absolute;
-  left: calc(25 / 1440 * 100%);
-  top: calc(47 / 900 * 100%);
-  width: calc(1390 / 1440 * 100%);
+  left: 25px;
+  top: 47px;
+  width: 1390px;
   height: 0;
   border: 0;
   border-top: 1px solid #000;
@@ -103,7 +108,7 @@ button, a {
 
 .nav a {
   position: absolute;
-  left: calc(25 / 1440 * 100%);
+  left: 25px;
   display: block;
   height: auto;
   margin: 0;
@@ -111,8 +116,8 @@ button, a {
   border: 0;
   background: none;
   font-weight: 500;
-  font-size: min(calc(10 / 1440 * 100vw), calc(10 / 900 * 100dvh));
-  line-height: min(calc(15 / 1440 * 100vw), calc(15 / 900 * 100dvh));
+  font-size: 10px;
+  line-height: 15px;
   text-transform: uppercase;
   text-decoration: none;
   white-space: nowrap;
@@ -120,15 +125,15 @@ button, a {
   pointer-events: auto;
 }
 
-.nav a:nth-child(1) { top: calc(55 / 900 * 100%); }
-.nav a:nth-child(2) { top: calc(76 / 900 * 100%); }
-.nav a:nth-child(3) { top: calc(97 / 900 * 100%); }
-.nav a:nth-child(4) { top: calc(118 / 900 * 100%); }
-.nav a:nth-child(5) { top: calc(139 / 900 * 100%); }
-.nav a:nth-child(6) { top: calc(160 / 900 * 100%); }
-.nav a:nth-child(7) { top: calc(181 / 900 * 100%); }
-.nav a:nth-child(8) { top: calc(202 / 900 * 100%); }
-.nav a:nth-child(9) { top: calc(223 / 900 * 100%); }
+.nav a:nth-child(1) { top: 55px; }
+.nav a:nth-child(2) { top: 76px; }
+.nav a:nth-child(3) { top: 97px; }
+.nav a:nth-child(4) { top: 118px; }
+.nav a:nth-child(5) { top: 139px; }
+.nav a:nth-child(6) { top: 160px; }
+.nav a:nth-child(7) { top: 181px; }
+.nav a:nth-child(8) { top: 202px; }
+.nav a:nth-child(9) { top: 223px; }
 
 .nav a.is-current,
 .frame.is-home .nav a {
@@ -154,22 +159,22 @@ button, a {
 }
 
 .dots {
-  position: fixed;
+  position: absolute;
   left: 50%;
-  bottom: min(calc(30 / 1440 * 100vw), calc(30 / 900 * 100dvh));
+  top: 864px;
   z-index: 4;
   display: flex;
-  gap: calc(3.6 / 34.8 * 100%);
-  width: min(calc(34.8 / 1440 * 100vw), calc(34.8 / 900 * 100dvh));
-  aspect-ratio: 34.8 / 6;
+  gap: 3.6px;
+  width: 34.8px;
+  height: 6px;
   margin: 0;
   padding: 0;
   transform: translateX(-50%);
 }
 
 .dots button {
-  width: calc(6 / 34.8 * 100%);
-  height: 100%;
+  width: 6px;
+  height: 6px;
   padding: 0;
   border: 0;
   border-radius: 50%;
@@ -180,50 +185,44 @@ button, a {
 .dots button.is-on { background: #000; }
 
 @media (max-width: 900px) {
-  .viewport { overflow: hidden; }
-
   .frame {
-    position: absolute;
-    inset: 0;
-    overflow: hidden;
+    width: 393px;
+    height: 852px;
   }
 
   body,
   .wordmark,
   .nav a {
-    font-size: min(calc(14 / 393 * 100vw), calc(14 / 852 * 100dvh));
-    line-height: min(calc(21 / 393 * 100vw), calc(21 / 852 * 100dvh));
+    font-size: 14px;
+    line-height: 21px;
   }
 
-  .wordmark { left: calc(12 / 393 * 100%); top: calc(14 / 852 * 100%); }
-  .frame.is-home .wordmark { left: calc(15 / 393 * 100%); }
+  .wordmark { left: 12px; top: 14px; }
+  .frame.is-home .wordmark { left: 15px; }
 
   .terrain-desk { display: none; }
   .terrain-mob {
     display: block;
-    left: calc(260 / 393 * 100%);
-    top: calc(19 / 852 * 100%);
-    width: calc(121 / 393 * 100%);
-    height: calc(2.86 / 852 * 100%);
+    left: 260px;
+    top: 19px;
+    width: 121px;
+    height: 2.86px;
   }
 
-  .hairline { left: calc(12 / 393 * 100%); top: calc(37 / 852 * 100%); width: calc(369 / 393 * 100%); }
-  .frame.is-home .hairline { left: calc(15 / 393 * 100%); width: calc(367 / 393 * 100%); }
+  .hairline { left: 12px; top: 37px; width: 369px; }
+  .frame.is-home .hairline { left: 15px; width: 367px; }
 
-  .nav a { left: calc(12 / 393 * 100%); }
-  .frame.is-home .nav a { left: calc(15 / 393 * 100%); }
-  .nav a:nth-child(1) { top: calc(51 / 852 * 100%); }
-  .nav a:nth-child(2) { top: calc(72 / 852 * 100%); }
-  .nav a:nth-child(3) { top: calc(93 / 852 * 100%); }
-  .nav a:nth-child(4) { top: calc(114 / 852 * 100%); }
-  .nav a:nth-child(5) { top: calc(135 / 852 * 100%); }
-  .nav a:nth-child(6) { top: calc(156 / 852 * 100%); }
-  .nav a:nth-child(7) { top: calc(177 / 852 * 100%); }
-  .nav a:nth-child(8) { top: calc(198 / 852 * 100%); }
-  .nav a:nth-child(9) { top: calc(219 / 852 * 100%); }
+  .nav a { left: 12px; }
+  .frame.is-home .nav a { left: 15px; }
+  .nav a:nth-child(1) { top: 51px; }
+  .nav a:nth-child(2) { top: 72px; }
+  .nav a:nth-child(3) { top: 93px; }
+  .nav a:nth-child(4) { top: 114px; }
+  .nav a:nth-child(5) { top: 135px; }
+  .nav a:nth-child(6) { top: 156px; }
+  .nav a:nth-child(7) { top: 177px; }
+  .nav a:nth-child(8) { top: 198px; }
+  .nav a:nth-child(9) { top: 219px; }
 
-  .dots {
-    bottom: min(calc(60 / 393 * 100vw), calc(60 / 852 * 100dvh));
-    width: min(calc(34.8 / 393 * 100vw), calc(34.8 / 852 * 100dvh));
-  }
+  .dots { top: 786px; }
 }
