@@ -19,6 +19,7 @@
 html, body {
   margin: 0;
   height: 100%;
+  overflow: hidden;
   background: #fff;
   color: #000;
 }
@@ -26,8 +27,8 @@ html, body {
 body {
   font-family: "IBM Plex Mono", ui-monospace, monospace;
   font-weight: 400;
-  font-size: calc(10 / 1440 * 100vw);
-  line-height: calc(15 / 1440 * 100vw);
+  font-size: calc(6 / 1440 * 100vw);
+  line-height: calc(9 / 1440 * 100vw);
 }
 
 button, a {
@@ -38,14 +39,14 @@ button, a {
 .viewport {
   position: fixed;
   inset: 0;
-  overflow: auto;
+  overflow: hidden;
   background: #fff;
 }
 
 .frame {
   position: relative;
   width: 100%;
-  aspect-ratio: 1440 / 900;
+  height: 100%;
   background: #fff;
 }
 
@@ -55,8 +56,8 @@ button, a {
   top: calc(24 / 900 * 100%);
   margin: 0;
   font-weight: 500;
-  font-size: calc(10 / 1440 * 100vw);
-  line-height: calc(15 / 1440 * 100vw);
+  font-size: calc(6 / 1440 * 100vw);
+  line-height: calc(9 / 1440 * 100vw);
   white-space: nowrap;
   text-decoration: none;
   z-index: 3;
@@ -105,8 +106,8 @@ button, a {
   border: 0;
   background: none;
   font-weight: 500;
-  font-size: calc(10 / 1440 * 100vw);
-  line-height: calc(15 / 1440 * 100vw);
+  font-size: calc(6 / 1440 * 100vw);
+  line-height: calc(9 / 1440 * 100vw);
   text-transform: uppercase;
   text-decoration: none;
   white-space: nowrap;
@@ -173,14 +174,14 @@ button, a {
 .dots button.is-on { background: #000; }
 
 @media (max-width: 900px) {
-  .viewport { overflow: auto; }
+  .viewport { overflow: hidden; }
 
   .frame {
     position: relative;
     inset: auto;
     width: 100%;
-    aspect-ratio: 393 / 852;
-    height: auto;
+    height: 100%;
+    aspect-ratio: auto;
   }
 
   body,
