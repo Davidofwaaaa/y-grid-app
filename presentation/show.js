@@ -185,7 +185,7 @@
   ];
 
   var menuItems = pages.filter(function (page) { return page.label; });
-  var board = document.getElementById("frame");
+  var board = document.getElementById("board");
   var menu = document.getElementById("nav");
   var stage = document.getElementById("slide");
   var count = null;
@@ -218,6 +218,8 @@
     var size = designSize();
     var scale = Math.min(window.innerWidth / size.w, window.innerHeight / size.h);
     document.documentElement.style.setProperty("--fit", String(scale));
+    board.style.left = ((window.innerWidth - size.w * scale) / 2) + "px";
+    board.style.top = ((window.innerHeight - size.h * scale) / 2) + "px";
     if (changed) render();
   }
 

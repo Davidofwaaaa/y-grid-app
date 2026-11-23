@@ -17,20 +17,16 @@
 * { box-sizing: border-box; }
 
 html, body {
-  position: fixed;
-  inset: 0;
-  width: 100%;
-  height: 100%;
   margin: 0;
+  height: 100%;
   overflow: hidden;
-  overscroll-behavior: none;
   background: #fff;
   color: #000;
 }
 
 body {
   font-family: "IBM Plex Mono", ui-monospace, monospace;
-  font-weight: 400;
+  font-weight: 500;
   font-size: 10px;
   line-height: 15px;
 }
@@ -44,39 +40,38 @@ button, a {
   position: fixed;
   inset: 0;
   overflow: hidden;
-  overscroll-behavior: none;
+  display: grid;
+  place-items: center;
   background: #fff;
 }
 
-.frame {
+.board {
   position: absolute;
-  left: 50%;
-  top: 50%;
+  left: 0;
+  top: 0;
   width: 1440px;
   height: 900px;
   overflow: hidden;
   background: #fff;
-  transform: translate(-50%, -50%) scale(var(--fit, 1));
-  transform-origin: center center;
+  zoom: var(--fit, 1);
 }
 
 .wordmark {
   position: absolute;
   left: 25px;
   top: 24px;
+  z-index: 3;
   margin: 0;
-  font-weight: 500;
   font-size: 10px;
   line-height: 15px;
   white-space: nowrap;
   text-decoration: none;
-  z-index: 3;
 }
 
 .terrain {
   position: absolute;
-  display: block;
   z-index: 3;
+  display: block;
 }
 
 .terrain-desk {
@@ -92,11 +87,11 @@ button, a {
   position: absolute;
   left: 25px;
   top: 47px;
+  z-index: 3;
   width: 1390px;
   height: 0;
   border: 0;
   border-top: 1px solid #000;
-  z-index: 3;
 }
 
 .nav {
@@ -110,12 +105,6 @@ button, a {
   position: absolute;
   left: 25px;
   display: block;
-  height: auto;
-  margin: 0;
-  padding: 0;
-  border: 0;
-  background: none;
-  font-weight: 500;
   font-size: 10px;
   line-height: 15px;
   text-transform: uppercase;
@@ -136,9 +125,7 @@ button, a {
 .nav a:nth-child(9) { top: 223px; }
 
 .nav a.is-current,
-.frame.is-home .nav a {
-  color: #000;
-}
+.board.is-home .nav a { color: #000; }
 
 .slide {
   position: absolute;
@@ -160,7 +147,7 @@ button, a {
 
 .dots {
   position: absolute;
-  left: 50%;
+  left: 702.6px;
   top: 864px;
   z-index: 4;
   display: flex;
@@ -169,7 +156,6 @@ button, a {
   height: 6px;
   margin: 0;
   padding: 0;
-  transform: translateX(-50%);
 }
 
 .dots button {
@@ -185,10 +171,7 @@ button, a {
 .dots button.is-on { background: #000; }
 
 @media (max-width: 900px) {
-  .frame {
-    width: 393px;
-    height: 852px;
-  }
+  .board { width: 393px; height: 852px; }
 
   body,
   .wordmark,
@@ -198,7 +181,7 @@ button, a {
   }
 
   .wordmark { left: 12px; top: 14px; }
-  .frame.is-home .wordmark { left: 15px; }
+  .board.is-home .wordmark { left: 15px; }
 
   .terrain-desk { display: none; }
   .terrain-mob {
@@ -210,10 +193,10 @@ button, a {
   }
 
   .hairline { left: 12px; top: 37px; width: 369px; }
-  .frame.is-home .hairline { left: 15px; width: 367px; }
+  .board.is-home .hairline { left: 15px; width: 367px; }
 
   .nav a { left: 12px; }
-  .frame.is-home .nav a { left: 15px; }
+  .board.is-home .nav a { left: 15px; }
   .nav a:nth-child(1) { top: 51px; }
   .nav a:nth-child(2) { top: 72px; }
   .nav a:nth-child(3) { top: 93px; }
@@ -224,5 +207,5 @@ button, a {
   .nav a:nth-child(8) { top: 198px; }
   .nav a:nth-child(9) { top: 219px; }
 
-  .dots { top: 786px; }
+  .dots { left: 178.6px; top: 786px; }
 }
