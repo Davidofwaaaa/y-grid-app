@@ -17,9 +17,13 @@
 * { box-sizing: border-box; }
 
 html, body {
-  margin: 0;
+  position: fixed;
+  inset: 0;
+  width: 100%;
   height: 100%;
+  margin: 0;
   overflow: hidden;
+  overscroll-behavior: none;
   background: #fff;
   color: #000;
 }
@@ -27,8 +31,8 @@ html, body {
 body {
   font-family: "IBM Plex Mono", ui-monospace, monospace;
   font-weight: 400;
-  font-size: calc(6 / 1440 * 100vw);
-  line-height: calc(9 / 1440 * 100vw);
+  font-size: min(calc(10 / 1440 * 100vw), calc(10 / 900 * 100dvh));
+  line-height: min(calc(15 / 1440 * 100vw), calc(15 / 900 * 100dvh));
 }
 
 button, a {
@@ -40,13 +44,14 @@ button, a {
   position: fixed;
   inset: 0;
   overflow: hidden;
+  overscroll-behavior: none;
   background: #fff;
 }
 
 .frame {
-  position: relative;
-  width: 100%;
-  height: 100%;
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
   background: #fff;
 }
 
@@ -56,8 +61,8 @@ button, a {
   top: calc(24 / 900 * 100%);
   margin: 0;
   font-weight: 500;
-  font-size: calc(6 / 1440 * 100vw);
-  line-height: calc(9 / 1440 * 100vw);
+  font-size: min(calc(10 / 1440 * 100vw), calc(10 / 900 * 100dvh));
+  line-height: min(calc(15 / 1440 * 100vw), calc(15 / 900 * 100dvh));
   white-space: nowrap;
   text-decoration: none;
   z-index: 3;
@@ -106,8 +111,8 @@ button, a {
   border: 0;
   background: none;
   font-weight: 500;
-  font-size: calc(6 / 1440 * 100vw);
-  line-height: calc(9 / 1440 * 100vw);
+  font-size: min(calc(10 / 1440 * 100vw), calc(10 / 900 * 100dvh));
+  line-height: min(calc(15 / 1440 * 100vw), calc(15 / 900 * 100dvh));
   text-transform: uppercase;
   text-decoration: none;
   white-space: nowrap;
@@ -133,6 +138,7 @@ button, a {
 .slide {
   position: absolute;
   inset: 0;
+  overflow: hidden;
   pointer-events: none;
 }
 
@@ -148,13 +154,13 @@ button, a {
 }
 
 .dots {
-  position: absolute;
+  position: fixed;
   left: 50%;
-  top: calc(864 / 900 * 100%);
+  bottom: min(calc(30 / 1440 * 100vw), calc(30 / 900 * 100dvh));
   z-index: 4;
   display: flex;
   gap: calc(3.6 / 34.8 * 100%);
-  width: calc(34.8 / 1440 * 100%);
+  width: min(calc(34.8 / 1440 * 100vw), calc(34.8 / 900 * 100dvh));
   aspect-ratio: 34.8 / 6;
   margin: 0;
   padding: 0;
@@ -177,18 +183,16 @@ button, a {
   .viewport { overflow: hidden; }
 
   .frame {
-    position: relative;
-    inset: auto;
-    width: 100%;
-    height: 100%;
-    aspect-ratio: auto;
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
   }
 
   body,
   .wordmark,
   .nav a {
-    font-size: calc(6 / 393 * 100vw);
-    line-height: calc(9 / 393 * 100vw);
+    font-size: min(calc(10 / 393 * 100vw), calc(10 / 852 * 100dvh));
+    line-height: min(calc(15 / 393 * 100vw), calc(15 / 852 * 100dvh));
   }
 
   .wordmark { left: calc(12 / 393 * 100%); top: calc(14 / 852 * 100%); }
@@ -219,8 +223,7 @@ button, a {
   .nav a:nth-child(9) { top: calc(219 / 852 * 100%); }
 
   .dots {
-    top: calc(786 / 852 * 100%);
-    width: calc(34.8 / 393 * 100%);
-    aspect-ratio: 34.8 / 6;
+    bottom: min(calc(60 / 393 * 100vw), calc(60 / 852 * 100dvh));
+    width: min(calc(34.8 / 393 * 100vw), calc(34.8 / 852 * 100dvh));
   }
 }
