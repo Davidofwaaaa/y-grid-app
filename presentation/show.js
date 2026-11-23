@@ -166,7 +166,6 @@
     return box;
   }
   var painted = "";
-  var shownPage = "";
   var generation = 0;
   function preload(layers) {
     layers.forEach(function (layer) {
@@ -203,26 +202,27 @@
       });
     }));
   }
-  function dissolve(incoming, token) {
-    var animation = incoming.animate(
-      [{ opacity: 0 }, { opacity: 1 }],
-      { duration: 900, easing: "ease", fill: "forwards" }
+  var FADE = 450;
+  function fadeTo(element, opacity) {
+    var animation = element.animate(
+      [{ opacity: getComputedStyle(element).opacity }, { opacity: opacity }],
+      { duration: FADE, easing: "ease", fill: "forwards" }
     );
-    var finished = false;
-    function done() {
-      if (finished || token !== generation || !incoming.parentNode) return;
-      finished = true;
-      incoming.style.opacity = "1";
-      animation.cancel();
-      while (stage.firstChild && stage.firstChild !== incoming) stage.removeChild(stage.firstChild);
-    }
-    animation.onfinish = done;
-    setTimeout(done, 980);
+    return new Promise(function (resolve) {
+      var settled = false;
+      function finish() {
+        if (settled) return;
+        settled = true;
+        element.style.opacity = String(opacity);
+        animation.cancel();
+        resolve();
+      }
+      animation.onfinish = finish;
+      setTimeout(finish, FADE + 40);
+    });
   }
   function show(page, animate) {
     var key = page.id + "/" + slide;
-    var pageChanged = shownPage !== "" && shownPage !== page.id;
-    shownPage = page.id;
     paintChrome(page);
     var ahead = page.slides[(slide + 1) % page.slides.length];
     if (ahead) preload(ahead);
@@ -231,17 +231,26 @@
     painted = key;
     var incoming = document.createElement("div");
     incoming.className = "frame";
+    incoming.style.opacity = "0";
     page.slides[slide].forEach(function (layer) { incoming.appendChild(piece(layer)); });
-    if (pageChanged) stage.innerHTML = "";
-    incoming.style.opacity = animate ? "0" : "1";
-    stage.appendChild(incoming);
+    var ready = loaded(incoming);
+    var previous = [].slice.call(stage.querySelectorAll(".frame"));
     if (!animate) {
-      while (stage.firstChild && stage.firstChild !== incoming) stage.removeChild(stage.firstChild);
+      incoming.style.opacity = "1";
+      stage.innerHTML = "";
+      stage.appendChild(incoming);
       return;
     }
-    loaded(incoming).then(function () {
+    Promise.all(previous.map(function (frame) { return fadeTo(frame, 0); })).then(function () {
+      if (token !== generation) return;
+      previous.forEach(function (frame) {
+        if (frame.parentNode) frame.parentNode.removeChild(frame);
+      });
+      stage.appendChild(incoming);
+      return ready;
+    }).then(function () {
       if (token !== generation || !incoming.parentNode) return;
-      dissolve(incoming, token);
+      return fadeTo(incoming, 1);
     });
   }
   function go(page, index) {
