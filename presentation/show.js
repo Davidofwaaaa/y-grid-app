@@ -112,13 +112,15 @@
     box.appendChild(image);
     return box;
   }
-  function render() {
-    var route = pageFromHash();
-    var page = route.page;
-    if (slide < 0) slide = 0;
-    if (slide > page.slides.length - 1) slide = page.slides.length - 1;
-    stage.innerHTML = "";
-    page.slides[slide].forEach(function (layer) { stage.appendChild(piece(layer)); });
+  var painted = "";
+  function preload(layers) {
+    layers.forEach(function (layer) {
+      if (!layer.src) return;
+      var image = new Image();
+      image.src = layer.src;
+    });
+  }
+  function paintChrome(page) {
     menu.querySelectorAll("a").forEach(function (link) {
       var on = page.id !== "home" && link.dataset.page === page.id;
       link.classList.toggle("is-current", on);
@@ -126,34 +128,85 @@
       else link.removeAttribute("aria-current");
     });
     dots.innerHTML = "";
-    for (var d = 0; d < 4; d++) {
+    page.slides.forEach(function (_, index) {
       var dot = document.createElement("button");
       dot.type = "button";
-      dot.className = d === Math.min(slide, 3) ? "is-on" : "";
-      dot.setAttribute("aria-label", "Slide " + (d + 1));
-      dot.dataset.slide = String(d);
+      dot.className = index === slide ? "is-on" : "";
+      dot.setAttribute("aria-label", "Image " + (index + 1));
+      dot.dataset.slide = String(index);
       dots.appendChild(dot);
-    }
+    });
     document.title = (page.label || "YZY") + " — YZY - GEMINI SYSTEM";
+  }
+  function show(page, animate) {
+    var key = page.id + "/" + slide;
+    paintChrome(page);
+    var ahead = page.slides[(slide + 1) % page.slides.length];
+    if (ahead) preload(ahead);
+    if (key === painted && stage.querySelector(".frame")) return;
+    painted = key;
+    var incoming = document.createElement("div");
+    incoming.className = "frame";
+    page.slides[slide].forEach(function (layer) { incoming.appendChild(piece(layer)); });
+    stage.appendChild(incoming);
+    if (!animate) {
+      while (stage.firstChild && stage.firstChild !== incoming) stage.removeChild(stage.firstChild);
+      return;
+    }
+    var animation = incoming.animate(
+      [{ opacity: 0 }, { opacity: 1 }],
+      { duration: 900, easing: "ease", fill: "forwards" }
+    );
+    var finished = false;
+    function done() {
+      if (finished || !incoming.parentNode) return;
+      finished = true;
+      incoming.style.opacity = "1";
+      animation.cancel();
+      while (stage.firstChild && stage.firstChild !== incoming) stage.removeChild(stage.firstChild);
+    }
+    animation.onfinish = done;
+    setTimeout(done, 980);
   }
   function go(page, index) {
     slide = index;
     var hash = "#" + page.id + (index > 0 ? "/" + (index + 1) : "");
     if (location.hash !== hash) location.hash = hash;
-    render();
+    else show(page, true);
   }
   dots.addEventListener("click", function (event) {
     var button = event.target.closest("button");
     if (!button) return;
+    event.stopPropagation();
     var page = pageFromHash().page;
     var index = parseInt(button.dataset.slide, 10);
-    if (index > page.slides.length - 1) index = page.slides.length - 1;
+    if (index === slide) return;
     go(page, index);
+  });
+  dots.addEventListener("mouseover", function (event) {
+    var button = event.target.closest("button");
+    if (!button) return;
+    var page = pageFromHash().page;
+    var index = parseInt(button.dataset.slide, 10);
+    if (page.slides[index]) preload(page.slides[index]);
+  });
+  menu.addEventListener("mouseover", function (event) {
+    var link = event.target.closest("a");
+    if (!link) return;
+    pages.forEach(function (page) {
+      if (page.id === link.dataset.page) preload(page.slides[0]);
+    });
+  });
+  document.querySelector(".viewport").addEventListener("click", function (event) {
+    if (event.target.closest("a, button")) return;
+    var page = pageFromHash().page;
+    if (page.slides.length < 2) return;
+    go(page, (slide + 1) % page.slides.length);
   });
   window.addEventListener("hashchange", function () {
     var route = pageFromHash();
     slide = Math.max(0, Math.min(route.index, route.page.slides.length - 1));
-    render();
+    show(route.page, true);
   });
   window.addEventListener("keydown", function (event) {
     var page = pageFromHash().page;
@@ -168,6 +221,6 @@
   slide = Math.max(0, start.index);
   if (!location.hash) history.replaceState(null, "", "#home");
   fit();
-  render();
+  show(start.page, false);
 })();
 
