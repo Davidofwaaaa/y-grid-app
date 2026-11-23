@@ -24,8 +24,6 @@ button, a { font: inherit; color: inherit; }
 .nav a:nth-child(5) { top: calc(139px * var(--fit, 1)); }
 .nav a:nth-child(6) { top: calc(160px * var(--fit, 1)); }
 .nav a:nth-child(7) { top: calc(181px * var(--fit, 1)); }
-.nav a:nth-child(8) { top: calc(202px * var(--fit, 1)); }
-.nav a:nth-child(9) { top: calc(223px * var(--fit, 1)); }
 .nav a.is-current,
 .nav a:hover { color: #000; }
 .slide { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }

@@ -1,52 +1,105 @@
 (function () {
-  var PATCH = ["-1.31%", "-116.24%", "102.63%", "332.47%"];
   function img(src, x, y, w, h, crop) {
     return { src: src, x: x, y: y, w: w, h: h, crop: crop || null };
   }
-  function social(dim) {
-    var layers = [
-      img("assets/social.png", 229, 175, 1568, 1250, ["-16.19%", "0%", "131.73%", "119.31%"]),
-      { kind: "fill", x: 933, y: 389, w: 350, h: 33 },
-      { mask: "assets/social-mask.svg", x: 624, y: 230, w: 181.133, h: 181.133, src: "assets/social-photo.png", photo: [-109.256, -106.965, 387.565, 382.951] }
-    ];
-    if (dim) layers[0].opacity = 0.3;
-    if (dim) {
-      layers.push(img("assets/social-ys.svg", 502, 300, 425, 42));
-      layers.push(img("assets/social-ring.svg", 631, 237, 168, 168));
-    }
-    return layers;
+  function yPair(x, y) {
+    return img("assets/y-pair.svg", x, y, 717.662, 70.171);
   }
-  function neck(files, tops, heights) {
-    return files.map(function (file, i) { return img(file, 407, tops[i], 626, heights[i]); });
+  function portrait() {
+    return { mask: "assets/social-mask.svg", x: 624, y: 230, w: 181.133, h: 181.133, src: "assets/social-photo.png", photo: [-109.256, -106.965, 387.565, 382.951] };
   }
+  function marks() {
+    return [img("assets/social-ys.svg", 502, 300, 425, 42), img("assets/social-ring.svg", 631, 237, 168, 168)];
+  }
+  var jerseyBoxes = [
+    [186, -242, 1069, 1058, ["-1.71%", "30.73%", "103.23%", "70.51%"]],
+    [0, -162.8, 1440, 1788, ["-3.64%", "6.21%", "107.28%", "100%"]],
+    [181, 119, 1062, 745, ["-5.65%", "-9.99%", "111.31%", "109.99%"]],
+    [0, -148, 1440, 1788, ["20.9%", "11%", "58.19%", "46.87%"]],
+    [-45.3, -145.7, 1530.9, 1886.7, ["0%", "9.74%", "100%", "80.54%"]],
+    [0.2, -156.7, 1440, 1788, ["20.9%", "11%", "58.19%", "46.87%"]],
+    [0, -138.8, 1440, 1788, ["-3.64%", "5.24%", "107.28%", "100%"]],
+    [320.6, 24, 770, 955, ["-0.02%", "0%", "100.04%", "100%"]],
+    [0, -102.4, 1440, 1788, ["-3.64%", "5.24%", "107.28%", "100%"]],
+    [-45.3, -145.7, 1530.9, 1886.7, ["0%", "9.74%", "100%", "80.54%"]],
+    [-45.9, -157.7, 1532.2, 1886.1, ["0%", "10.92%", "100%", "80.54%"]],
+    [0, -87, 1442, 1790, ["-3.64%", "5.24%", "107.28%", "100%"]],
+    [335, 70, 770, 815, ["-0.02%", "-8.59%", "100.04%", "117.18%"]],
+    [-51.8, -211.6, 1538.2, 1893.5, ["-0.89%", "-27.35%", "103.97%", "100.01%"]],
+    [-51.8, -211.6, 1538.2, 1893.5, ["-0.89%", "-27.35%", "103.97%", "100.01%"]],
+    [-51.8, -211.6, 1538.2, 1893.5, ["-0.89%", "-27.35%", "103.97%", "100.01%"]]
+  ];
+  var neckBoxes = [
+    [209, 1023, 376],
+    [208, 1025, 377],
+    [209, 1023, 376],
+    [209, 1023, 376],
+    [209, 1023, 376],
+    [208, 1025, 377],
+    [208, 1025, 377],
+    [209, 1023, 376]
+  ];
   var pages = [
-    { id: "home", label: null, slides: [[
-      img("assets/model.png", 259, 154, 921, 628.353, ["-11%", "-0.24%", "121.9%", "99.73%"]),
-      img("assets/y-pair.svg", 360.27, 433.09, 717.662, 70.171)
+    { id: "home", label: "Homepage", slides: [[
+      img("assets/home.png", 259, 136, 921, 628.353, ["-11%", "-0.24%", "121.9%", "99.73%"]),
+      yPair(360.27, 415.09)
     ]] },
-    { id: "hangtags", label: "Hangtags", slides: [
-      [img("assets/hangtag.png", 98, 0, 1243, 1559)],
-      [img("assets/hangtag.png", 98, 0, 1243, 1559)]
-    ] },
-    { id: "neck-label", label: "Neck Label", slides: [
-      neck(["assets/neck-1.png", "assets/neck-6.png", "assets/neck-5.png"], [174, 347, 520], [230, 230, 231]),
-      neck(["assets/neck-2.png", "assets/neck-3.png", "assets/neck-4.png"], [162, 336, 509], [231, 230, 230])
-    ] },
-    { id: "on-jersey", label: "On jersey", slides: [[img("assets/jersey.png", 217, -315, 1008, 1215, ["2.18%", "2.41%", "95.63%", "98.54%"])]] },
-    { id: "on-footwear", label: "On footwear", slides: [[img("assets/footwear.png", 360, 168, 797, 537, ["-8.04%", "-22.46%", "108.04%", "160.46%"])]] },
-    { id: "architectural", label: "architectural", slides: [[img("assets/arch.png", 310, 107, 821, 731, ["-58.22%", "-45.3%", "216.2%", "181.3%"])]] },
-    { id: "socials", label: "Socials", slides: [
-      social(false),
-      social(true),
+    { id: "neck-label", label: "Neck Label", slides: neckBoxes.map(function (box, index) {
+      return [img("assets/neck-" + (index + 1) + ".png", box[0], 262, box[1], box[2])];
+    }) },
+    { id: "on-jersey", label: "On jersey", slides: jerseyBoxes.map(function (box, index) {
+      return [img("assets/jersey-" + (index + 1) + ".png", box[0], box[1], box[2], box[3], box[4])];
+    }) },
+    { id: "on-footwear", label: "On footwear", slides: [
+      [img("assets/boot-1.png", 259, 177, 922, 546)],
       [
-        { mask: "assets/social-mask.svg", x: 624, y: 230, w: 181.133, h: 181.133, src: "assets/social-photo.png", photo: [-109.256, -106.965, 387.565, 382.951] },
-        img("assets/social-ys.svg", 502, 300, 425, 42),
-        img("assets/social-ring.svg", 631, 237, 168, 168)
-      ]
+        img("assets/boot-left.png", 224, 256, 396, 395),
+        img("assets/boot-back.png", 640, 250, 161, 395, ["-72.19%", "0%", "244.37%", "100%"]),
+        img("assets/boot-right.png", 821, 250, 396, 395)
+      ],
+      [img("assets/boot-3.png", 259, 177, 922, 546)],
+      [
+        img("assets/boot-side-left.png", 70, 210, 526, 527),
+        img("assets/boot-side-back.png", 468, 221, 503, 503),
+        img("assets/boot-side-right.png", 826, 210, 544, 545)
+      ],
+      [img("assets/boot-stealth.png", 218, 160, 994, 565, ["-0.9%", "-0.51%", "101.8%", "101.02%"])]
     ] },
-    { id: "conceptual", label: "conceptual", slides: [[]] },
-    { id: "hardware", label: "Hardware", slides: [1, 2, 3, 4, 5].map(function (n) { return [img("assets/patch-" + n + ".png", 150, 245, 1141, 437, PATCH)]; }) },
-    { id: "misc", label: "Misc", slides: [[]] }
+    { id: "socials", label: "Socials", slides: [
+      [
+        img("assets/social.png", 229, 175, 1211, 725, ["-20.96%", "0%", "170.56%", "205.71%"]),
+        { kind: "fill", x: 933, y: 389, w: 350, h: 33 },
+        portrait()
+      ],
+      [
+        Object.assign(img("assets/social.png", 229, 175, 1568, 1250, ["-16.19%", "0%", "131.73%", "119.31%"]), { opacity: 0.3 }),
+        { kind: "fill", x: 933, y: 389, w: 350, h: 33 },
+        portrait()
+      ].concat(marks()),
+      [portrait()].concat(marks())
+    ] },
+    { id: "hardware", label: "Hardware", slides: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(function (n) {
+      return [img("assets/patch-" + n + ".png", 247, 311, 946.4, 278.3)];
+    }) },
+    { id: "imagery", label: "Imagery", slides: [
+      [
+        img("assets/home.png", 259, 154, 921, 628.353, ["-11%", "-0.24%", "121.9%", "99.73%"]),
+        yPair(361.17, 433.09)
+      ],
+      [
+        img("assets/imagery-2.png", 259, 195, 922, 514),
+        yPair(361.17, 433.09)
+      ],
+      [img("assets/imagery-3.png", 424, 92.42, 592.83, 726.16, ["-6.07%", "0%", "204.15%", "100%"])],
+      [
+        img("assets/imagery-4.png", 424, 104.5, 592.8, 741),
+        yPair(361, 271)
+      ],
+      [
+        img("assets/imagery-5.png", 259, 142, 922, 616, ["0%", "-8.58%", "100%", "112.26%"]),
+        yPair(361, 379.83)
+      ]
+    ] }
   ];
   var menuItems = pages.filter(function (page) { return page.label; });
   var board = document.getElementById("board");
@@ -124,7 +177,7 @@
   }
   function paintChrome(page) {
     menu.querySelectorAll("a").forEach(function (link) {
-      var on = page.id !== "home" && link.dataset.page === page.id;
+      var on = link.dataset.page === page.id;
       link.classList.toggle("is-current", on);
       if (on) link.setAttribute("aria-current", "page");
       else link.removeAttribute("aria-current");
