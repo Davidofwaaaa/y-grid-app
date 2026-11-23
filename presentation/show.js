@@ -113,6 +113,8 @@
     return box;
   }
   var painted = "";
+  var shownPage = "";
+  var generation = 0;
   function preload(layers) {
     layers.forEach(function (layer) {
       if (!layer.src) return;
@@ -138,28 +140,24 @@
     });
     document.title = (page.label || "YZY") + " — YZY - GEMINI SYSTEM";
   }
-  function show(page, animate) {
-    var key = page.id + "/" + slide;
-    paintChrome(page);
-    var ahead = page.slides[(slide + 1) % page.slides.length];
-    if (ahead) preload(ahead);
-    if (key === painted && stage.querySelector(".frame")) return;
-    painted = key;
-    var incoming = document.createElement("div");
-    incoming.className = "frame";
-    page.slides[slide].forEach(function (layer) { incoming.appendChild(piece(layer)); });
-    stage.appendChild(incoming);
-    if (!animate) {
-      while (stage.firstChild && stage.firstChild !== incoming) stage.removeChild(stage.firstChild);
-      return;
-    }
+  function loaded(frame) {
+    var images = [].slice.call(frame.querySelectorAll("img"));
+    return Promise.all(images.map(function (image) {
+      if (image.complete) return Promise.resolve();
+      return new Promise(function (resolve) {
+        image.addEventListener("load", resolve, { once: true });
+        image.addEventListener("error", resolve, { once: true });
+      });
+    }));
+  }
+  function dissolve(incoming, token) {
     var animation = incoming.animate(
       [{ opacity: 0 }, { opacity: 1 }],
       { duration: 900, easing: "ease", fill: "forwards" }
     );
     var finished = false;
     function done() {
-      if (finished || !incoming.parentNode) return;
+      if (finished || token !== generation || !incoming.parentNode) return;
       finished = true;
       incoming.style.opacity = "1";
       animation.cancel();
@@ -167,6 +165,31 @@
     }
     animation.onfinish = done;
     setTimeout(done, 980);
+  }
+  function show(page, animate) {
+    var key = page.id + "/" + slide;
+    var pageChanged = shownPage !== "" && shownPage !== page.id;
+    shownPage = page.id;
+    paintChrome(page);
+    var ahead = page.slides[(slide + 1) % page.slides.length];
+    if (ahead) preload(ahead);
+    if (key === painted && stage.querySelector(".frame")) return;
+    var token = ++generation;
+    painted = key;
+    var incoming = document.createElement("div");
+    incoming.className = "frame";
+    page.slides[slide].forEach(function (layer) { incoming.appendChild(piece(layer)); });
+    if (pageChanged) stage.innerHTML = "";
+    incoming.style.opacity = animate ? "0" : "1";
+    stage.appendChild(incoming);
+    if (!animate) {
+      while (stage.firstChild && stage.firstChild !== incoming) stage.removeChild(stage.firstChild);
+      return;
+    }
+    loaded(incoming).then(function () {
+      if (token !== generation || !incoming.parentNode) return;
+      dissolve(incoming, token);
+    });
   }
   function go(page, index) {
     slide = index;
