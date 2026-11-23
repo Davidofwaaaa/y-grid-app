@@ -211,20 +211,31 @@
     menu.appendChild(link);
   });
   var layout = "";
+  function viewSize() {
+    var vv = window.visualViewport;
+    if (!vv) return { width: window.innerWidth, height: window.innerHeight, left: 0, top: 0 };
+    return { width: vv.width, height: vv.height, left: vv.offsetLeft, top: vv.offsetTop };
+  }
   function fit() {
-    var next = window.innerWidth <= 900 ? "mobile" : "desktop";
+    var size = viewSize();
+    var next = size.width <= 900 ? "mobile" : "desktop";
     var changed = next !== layout;
     layout = next;
     pages = next === "mobile" ? mobilePages : desktopPages;
     document.documentElement.dataset.layout = next;
     var width = next === "mobile" ? 393 : 1440;
     var height = next === "mobile" ? 852 : 900;
-    var scale = Math.min(window.innerWidth / width, window.innerHeight / height);
+    var scale = Math.min(size.width / width, size.height / height);
     document.documentElement.style.setProperty("--fit", String(scale));
+    var view = document.querySelector(".viewport");
+    view.style.left = size.left + "px";
+    view.style.top = size.top + "px";
+    view.style.width = size.width + "px";
+    view.style.height = size.height + "px";
     board.style.width = width + "px";
     board.style.height = height + "px";
-    board.style.left = ((window.innerWidth - width * scale) / 2) + "px";
-    board.style.top = ((window.innerHeight - height * scale) / 2) + "px";
+    board.style.left = ((size.width - width * scale) / 2) + "px";
+    board.style.top = ((size.height - height * scale) / 2) + "px";
     if (!changed || !painted) return;
     var route = pageFromHash();
     slide = Math.max(0, Math.min(slide, route.page.slides.length - 1));
@@ -427,6 +438,10 @@
     go(page, next);
   });
   window.addEventListener("resize", fit);
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener("resize", fit);
+    window.visualViewport.addEventListener("scroll", fit);
+  }
   if (!location.hash) history.replaceState(null, "", "#home");
   fit();
   var start = pageFromHash();
