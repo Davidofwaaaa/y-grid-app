@@ -30,6 +30,6 @@ button, a { font: inherit; color: inherit; }
 .frame { position: absolute; inset: 0; }
 .crop { position: absolute; overflow: hidden; }
 .crop img { position: absolute; display: block; max-width: none; }
-.dots { position: absolute; left: 720px; top: 864px; z-index: 4; display: flex; gap: 3.6px; width: max-content; height: 6px; margin: 0; padding: 0; transform: translateX(-50%); }
-.dots button { width: 6px; height: 6px; padding: 0; border: 0; border-radius: 50%; background: #d9d9d9; cursor: pointer; }
+.dots { position: absolute; left: 50%; bottom: calc(30px * var(--fit, 1)); z-index: 4; display: flex; gap: calc(3.6px * var(--fit, 1)); width: max-content; height: calc(6px * var(--fit, 1)); margin: 0; padding: 0; transform: translateX(-50%); }
+.dots button { width: calc(6px * var(--fit, 1)); height: calc(6px * var(--fit, 1)); padding: 0; border: 0; border-radius: 50%; background: #d9d9d9; cursor: pointer; }
 .dots button.is-on { background: #000; }

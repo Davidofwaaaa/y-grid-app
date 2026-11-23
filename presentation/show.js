@@ -115,7 +115,7 @@
     menu.appendChild(link);
   });
   function fit() {
-    var scale = Math.min(window.innerWidth / 1440, window.innerHeight / 900);
+    var scale = Math.max(window.innerWidth / 1440, window.innerHeight / 900);
     document.documentElement.style.setProperty("--fit", String(scale));
     board.style.left = ((window.innerWidth - 1440 * scale) / 2) + "px";
     board.style.top = ((window.innerHeight - 900 * scale) / 2) + "px";
