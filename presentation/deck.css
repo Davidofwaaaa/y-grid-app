@@ -173,7 +173,16 @@ button, a {
 
 .dots button.is-on { background: #000; }
 
-@media (max-width: 760px) {
+@media (max-width: 900px) {
+  .viewport { overflow: auto; }
+
+  .frame {
+    position: relative;
+    inset: auto;
+    width: 100%;
+    height: calc(100vw * 852 / 393);
+  }
+
   body,
   .wordmark,
   .nav a {

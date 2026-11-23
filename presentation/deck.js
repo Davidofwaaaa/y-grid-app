@@ -203,7 +203,7 @@
   });
 
   function mobileQuery() {
-    return window.matchMedia("(max-width: 760px)").matches;
+    return window.matchMedia("(max-width: 900px)").matches;
   }
 
   function designSize() {
