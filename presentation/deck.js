@@ -206,15 +206,15 @@
     return window.matchMedia("(max-width: 760px)").matches;
   }
 
+  function designSize() {
+    return layout === "mobile" ? { w: 393, h: 852 } : { w: 1440, h: 900 };
+  }
+
   function fit() {
     var next = mobileQuery() ? "mobile" : "desktop";
     var changed = next !== layout;
     layout = next;
     document.body.dataset.layout = layout;
-    var w = layout === "mobile" ? 393 : 1440;
-    var h = layout === "mobile" ? 852 : 900;
-    var s = Math.min(window.innerWidth / w, window.innerHeight / h);
-    board.style.setProperty("--fit", String(s));
     if (changed) render();
   }
 
@@ -231,12 +231,13 @@
   }
 
   function piece(layer) {
+    var size = designSize();
     var box = document.createElement("div");
     box.className = "crop";
-    box.style.left = layer.x + "px";
-    box.style.top = layer.y + "px";
-    box.style.width = layer.w + "px";
-    box.style.height = layer.h + "px";
+    box.style.left = (layer.x / size.w * 100) + "%";
+    box.style.top = (layer.y / size.h * 100) + "%";
+    box.style.width = (layer.w / size.w * 100) + "%";
+    box.style.height = (layer.h / size.h * 100) + "%";
     var image = document.createElement("img");
     image.src = layer.src;
     image.alt = "";
@@ -247,10 +248,10 @@
       box.style.maskSize = "100% 100%";
       box.style.webkitMaskRepeat = "no-repeat";
       box.style.maskRepeat = "no-repeat";
-      image.style.left = layer.photo[0] + "px";
-      image.style.top = layer.photo[1] + "px";
-      image.style.width = layer.photo[2] + "px";
-      image.style.height = layer.photo[3] + "px";
+      image.style.left = (layer.photo[0] / layer.w * 100) + "%";
+      image.style.top = (layer.photo[1] / layer.h * 100) + "%";
+      image.style.width = (layer.photo[2] / layer.w * 100) + "%";
+      image.style.height = (layer.photo[3] / layer.h * 100) + "%";
       image.style.objectFit = "cover";
     } else if (layer.crop) {
       image.style.left = layer.crop[0];
