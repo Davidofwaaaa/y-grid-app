@@ -1,0 +1,213 @@
+@font-face {
+  font-family: "IBM Plex Mono";
+  src: url("../yzy/fonts/IBMPlexMono-Regular.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: block;
+}
+
+@font-face {
+  font-family: "IBM Plex Mono";
+  src: url("fonts/IBMPlexMono-Medium.ttf") format("truetype");
+  font-weight: 500;
+  font-style: normal;
+  font-display: block;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+  background: #fff;
+  color: #000;
+}
+
+body {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-weight: 400;
+  font-size: 10px;
+  line-height: 15px;
+}
+
+button, a {
+  font: inherit;
+  color: inherit;
+}
+
+.viewport {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  background: #fff;
+}
+
+.frame {
+  --fit: 1;
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 1440px;
+  height: 900px;
+  background: #fff;
+  transform: translate(-50%, -50%) scale(var(--fit));
+  transform-origin: center center;
+}
+
+.wordmark {
+  position: absolute;
+  left: 25px;
+  top: 24px;
+  margin: 0;
+  font-weight: 500;
+  font-size: 10px;
+  line-height: 15px;
+  white-space: nowrap;
+  text-decoration: none;
+  z-index: 3;
+}
+
+.terrain {
+  position: absolute;
+  display: block;
+  z-index: 3;
+}
+
+.terrain-desk {
+  left: 1246px;
+  top: 28px;
+  width: 169px;
+  height: 4px;
+}
+
+.terrain-mob { display: none; }
+
+.hairline {
+  position: absolute;
+  left: 25px;
+  top: 47px;
+  width: 1390px;
+  height: 0;
+  border: 0;
+  border-top: 1px solid #000;
+  z-index: 3;
+}
+
+.nav {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+}
+
+.nav a {
+  position: absolute;
+  left: 25px;
+  display: block;
+  height: auto;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  font-weight: 500;
+  font-size: 10px;
+  line-height: 15px;
+  text-transform: uppercase;
+  text-decoration: none;
+  white-space: nowrap;
+  color: rgba(0, 0, 0, 0.3);
+  pointer-events: auto;
+}
+
+.nav a:nth-child(1) { top: 55px; }
+.nav a:nth-child(2) { top: 76px; }
+.nav a:nth-child(3) { top: 97px; }
+.nav a:nth-child(4) { top: 118px; }
+.nav a:nth-child(5) { top: 139px; }
+.nav a:nth-child(6) { top: 160px; }
+.nav a:nth-child(7) { top: 181px; }
+.nav a:nth-child(8) { top: 202px; }
+.nav a:nth-child(9) { top: 223px; }
+
+.nav a.is-current,
+.frame.is-home .nav a {
+  color: #000;
+}
+
+.slide {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.crop {
+  position: absolute;
+  overflow: hidden;
+}
+
+.crop img {
+  position: absolute;
+  display: block;
+  max-width: none;
+}
+
+.controls {
+  position: absolute;
+  left: 259px;
+  top: 867px;
+  z-index: 4;
+  width: 240px;
+  height: 13px;
+  margin: 0;
+  font-size: 10px;
+  line-height: 13px;
+}
+
+.controls button {
+  position: absolute;
+  top: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  text-decoration: underline;
+  text-underline-offset: 1px;
+  cursor: pointer;
+}
+
+.controls .prev { left: 0; }
+.controls .next { left: 36px; }
+.controls .count { position: absolute; left: 201px; top: 0; }
+
+@media (max-width: 760px) {
+  .frame { width: 393px; height: 852px; }
+
+  .wordmark { left: 12px; top: 14px; }
+  .frame.is-home .wordmark { left: 15px; }
+
+  .terrain-desk { display: none; }
+  .terrain-mob {
+    display: block;
+    left: 260px;
+    top: 19px;
+    width: 121px;
+    height: 2.86px;
+  }
+
+  .hairline { left: 12px; top: 37px; width: 369px; }
+  .frame.is-home .hairline { left: 15px; width: 367px; }
+
+  .nav a { left: 12px; }
+  .frame.is-home .nav a { left: 15px; }
+  .nav a:nth-child(1) { top: 51px; }
+  .nav a:nth-child(2) { top: 72px; }
+  .nav a:nth-child(3) { top: 93px; }
+  .nav a:nth-child(4) { top: 114px; }
+  .nav a:nth-child(5) { top: 135px; }
+  .nav a:nth-child(6) { top: 156px; }
+  .nav a:nth-child(7) { top: 177px; }
+  .nav a:nth-child(8) { top: 198px; }
+  .nav a:nth-child(9) { top: 219px; }
+
+  .controls { left: 12px; top: 820px; background: #fff; }
+  .controls .count { left: 120px; }
+}

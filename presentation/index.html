@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
   Figma: https://www.figma.com/design/UX71vFIB6b4Lj3W3nyZB67/YZY?node-id=176-3
-  Desktop frames are 1440×900. Each section has a matching iPhone 14 & 15 Pro frame.
+  Desktop frames 1440×900. Mobile frames are the iPhone 14 & 15 Pro row.
 -->
 <html lang="en">
 <head>
@@ -9,24 +9,24 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="light">
   <title>YZY - GEMINI SYSTEM</title>
-  <link rel="stylesheet" href="presentation.css">
+  <link rel="stylesheet" href="deck.css?v=4">
 </head>
 <body>
   <div class="viewport">
-    <div class="board" id="board">
-      <p class="system">YZY - GEMINI SYSTEM</p>
-      <img class="mark mark-desk" src="assets/whte.svg" alt="TERRAIN" width="169" height="4">
-      <img class="mark mark-mob" src="assets/terrain-mobile.svg" alt="TERRAIN" width="121" height="3">
-      <div class="rule"></div>
-      <nav class="menu" id="menu" aria-label="Pages"></nav>
-      <div class="stage" id="stage"></div>
-      <p class="pager" id="pager">
+    <div class="frame" id="frame">
+      <a class="wordmark" href="#home">YZY - GEMINI SYSTEM</a>
+      <img class="terrain terrain-desk" src="assets/whte.svg" alt="TERRAIN" width="169" height="4">
+      <img class="terrain terrain-mob" src="assets/terrain-mobile.svg" alt="" width="121" height="3">
+      <div class="hairline"></div>
+      <nav class="nav" id="nav" aria-label="Pages"></nav>
+      <div class="slide" id="slide"></div>
+      <p class="controls" id="controls">
         <button type="button" class="prev" id="prev">Prev</button>
         <button type="button" class="next" id="next">next</button>
         <span class="count" id="count">1/1</span>
       </p>
     </div>
   </div>
-  <script src="presentation.js"></script>
+  <script src="deck.js?v=4"></script>
 </body>
 </html>
