@@ -182,14 +182,16 @@
       else link.removeAttribute("aria-current");
     });
     dots.innerHTML = "";
-    page.slides.forEach(function (_, index) {
-      var dot = document.createElement("button");
-      dot.type = "button";
-      dot.className = index === slide ? "is-on" : "";
-      dot.setAttribute("aria-label", "Image " + (index + 1));
-      dot.dataset.slide = String(index);
-      dots.appendChild(dot);
-    });
+    if (page.id !== "home") {
+      page.slides.forEach(function (_, index) {
+        var dot = document.createElement("button");
+        dot.type = "button";
+        dot.className = index === slide ? "is-on" : "";
+        dot.setAttribute("aria-label", "Image " + (index + 1));
+        dot.dataset.slide = String(index);
+        dots.appendChild(dot);
+      });
+    }
     document.title = (page.label || "YZY") + " — YZY - GEMINI SYSTEM";
   }
   function loaded(frame) {
